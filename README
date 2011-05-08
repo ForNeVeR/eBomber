@@ -1,3 +1,12 @@
+= eBomber project =
+
+- Description -
+
 Another server for bomberbot project. Written in Erlang.
 
 See https://github.com/eugenezamriy/bomberbot for details.
+
+- Licensing -
+
+All source code of this project is licensed under GNU GPLv3 license. See file
+LICENSE for details.
