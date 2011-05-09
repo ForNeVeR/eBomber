@@ -18,20 +18,39 @@ See https://github.com/eugenezamriy/bomberbot for details.
 Building
 ========
 
-To build current version of source code, execute following commands:
+First, you need last version of Erlang and OTP installed. See http://erlang.org
+for details. To build current version of source code, execute following
+commands:
 
     $ cd eBomber
     $ md ebin
     $ erl -make
 
+Other way from Erlang console:
+
+    $ erl
+    Erlang R14B02 (erts-5.8.3) [smp:8:8] [rq:8] [async-threads:0]
+
+    Eshell V5.8.3  (abort with ^G)
+    1> cd("path/to/eBomber").
+    path/to/eBomber
+    ok
+    2> make:all().
+    ... (some lines skipped)
+    up_to_date
+
 Using
 =====
 
-Currently, your only option is running Erlang console:
+First, run Erlang console:
 
     $ cd ebin && erl
 
-and direct testing any exported functions of eBomber modules.
+Then start ebomber server:
+
+    1> ebomber:start_link().
+
+For now server only stays in memory and logs all incoming messages. Stay tuned.
 
 Architecture
 ============
@@ -48,9 +67,9 @@ handle other data types and connection methods.
 
 ### ebomber module
 
-Main module is ebomber. It processes data from clients and redirects it to
-games. At start it spawns json_socket_listener (and any other types of
-listeners, if any other of them will exist). At need it spawns game processes.
+Main program module. It processes data from clients and redirects it to games.
+At start it spawns json_socket_listener (and any other types of listeners, if
+any other of them will exist). At need it spawns game processes.
 
 ### json_socket_listener module
 
@@ -62,7 +81,9 @@ json_connector processes for connecting clients.
 json_connector is process that processes JSON data recieved from clients. Then
 it sends processed data to main server.
 
+Any connector module must have generic way to send some response back to client.
+
 ### game module
 
 game process spawns timer process at start, and may spawn bomb processes when
-game is running.
+the game is running.
