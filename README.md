@@ -3,8 +3,8 @@ eBomber project
 
 Licensing
 =========
-All source code of this project is licensed under GNU GPLv3 license. See file
-LICENSE for details.
+All source code of this project is licensed under GNU GPLv3 license. See the
+LICENSE file for details.
 
 mochijson2 library licensed under GPL-compartible MIT license.
 
