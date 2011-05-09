@@ -24,10 +24,10 @@ and direct testing any exported functions of eBomber modules.
 Note that project is still not finished, so this is more a notes about future
 project structure.
 
-All internal data communication transported in Erlang format; no JSON inside
+All internal data communication is performed in Erlang format; no JSON inside
 server. JSON data parsed when received from clients and created before sending
 to client by json_connector process/module. In future, server may be expanded to
-handle other data types.
+handle other data types and connection methods.
 
 Main module is ebomber. It processes data from clients and redirects it to
 games. At start it spawns json_socket_listener (and any other types of
