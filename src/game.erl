@@ -17,6 +17,8 @@
 
 -include("game.hrl").
 
+%% === Public functions ===
+
 start(Name, MinPlayers, MaxPlayers, Map) ->
     spawn_link(?MODULE, wait_loop, [#game_wait_state {
                                       name=Name,
@@ -56,6 +58,8 @@ wait_loop(State=#game_wait_state {
             ?Log("Game recieved unknown message: ~p", [Unknown]),
             wait_loop(State)
     end.
+
+%% === Private functions ===
 
 %% TODO: Finish this function.
 game_loop(State=#game_running_state{}) ->

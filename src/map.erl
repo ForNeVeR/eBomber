@@ -17,6 +17,8 @@
 
 -include("game.hrl").
 
+%% === Public functions ===
+
 % Creates a new standard map.
 new() ->
     new(5, 5).
@@ -33,7 +35,7 @@ new(SizeX, SizeY, Objects) ->
      objects = Objects
     }.
 
-%% = Internal functions =
+%% === Private functions ===
 
 % Forms default object placement.
 % TODO: Implement it.

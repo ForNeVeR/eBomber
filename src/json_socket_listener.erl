@@ -13,25 +13,35 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(json_socket_listener).
--export([start_link/1]).
--export([init/1]).
+-export([start_link/2]).
+-export([init/2]).
 
-%% === Public interface ===
+%% === Public functions ===
 
-start_link(Server) ->
+start_link(Server, Port) ->
     io:format("json_socket_server:start_link~n"),
-    spawn_link(?MODULE, init, [Server]).
+    spawn_link(?MODULE, init, [Server, Port]).
 
 %% === Private functions ===
 
-init(Server) ->
+init(Server, Port) ->
     io:format("json_socket_server:init~n"),
-    %% TODO: Start socket listening.
-    loop(Server).
+    {ok, ServerSocket} = gen_tcp:listen(Port, [binary, {packet, raw}]),
+    {ok, Connector, Ref} = spawn_new_connector(ServerSocket),
+    loop(Server, ServerSocket, Connector, []).
 
-loop(Server) ->
+spawn_new_connector(ServerSocket) ->
+    json_connector:start_monitor(self(), ServerSocket).
+
+
+loop(Server, ServerSocket, InactiveConnector, Connectors) ->
     receive
-        Message ->
-            io:format("json_socket_listener received message ~p.", Message),
-            loop(Server)
+        {Connector, connected} ->
+            io:format("Client connected."),
+            {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket),
+            loop(Server, ServerSocket, NewConnector,
+                 lists:append(Connectors, Connector));
+        Unknown ->
+            io:format("json_socket_listener received message ~p~n", Unknown),
+            loop(Server, ServerSocket, InactiveConnector, Connectors)
     end.

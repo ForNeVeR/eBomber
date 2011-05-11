@@ -19,17 +19,17 @@
 
 -behavior(gen_server).
 
-%% === Public interface ===
+%% === Public functions ===
 
 start_link() ->
     io:format("ebomber:start_link~n"),
     gen_server:start_link(?MODULE, [], []).
 
-%% === Functions called by gen_server bahavior ===
+%% === gen_server behavior ===
 
 init(_Args) ->
     io:format("ebomber:init~n"),
-    json_socket_listener:start_link(self()),
+    json_socket_listener:start_link(self(), 6666),
     {ok, []}.
 
 handle_call(Request, From, State) ->
