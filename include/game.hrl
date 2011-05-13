@@ -50,5 +50,3 @@
           name="",
           coords=#coords{}
         }).
-
--define(Log, io:format).

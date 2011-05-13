@@ -55,7 +55,7 @@ wait_loop(State=#game_wait_state {
         {Server, cancel} ->
             Server ! {self(), ok};
         Unknown ->
-            ?Log("Game recieved unknown message: ~p", [Unknown]),
+            io:format("Game recieved unknown message: ~p", [Unknown]),
             wait_loop(State)
     end.
 
@@ -63,4 +63,4 @@ wait_loop(State=#game_wait_state {
 
 %% TODO: Finish this function.
 game_loop(State=#game_running_state{}) ->
-    ?Log("Game entered game_loop function, state=~p.", State).
+    io:format("Game entered game_loop function, state=~p.", [State]).

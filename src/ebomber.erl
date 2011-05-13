@@ -13,7 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/0]).
+-export([start_link/0, start_link/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -22,14 +22,17 @@
 %% === Public functions ===
 
 start_link() ->
+    start_link(6666).
+
+start_link(Port) ->
     io:format("ebomber:start_link~n"),
-    gen_server:start_link(?MODULE, [], []).
+    gen_server:start_link(?MODULE, [Port], []).
 
 %% === gen_server behavior ===
 
-init(_Args) ->
+init([Port]) ->
     io:format("ebomber:init~n"),
-    json_socket_listener:start_link(self(), 6666),
+    json_socket_listener:start_link(self(), Port),
     {ok, []}.
 
 handle_call(Request, From, State) ->

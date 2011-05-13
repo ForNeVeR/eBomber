@@ -42,6 +42,6 @@ loop(Server, ServerSocket, InactiveConnector, Connectors) ->
             loop(Server, ServerSocket, NewConnector,
                  lists:append(Connectors, Connector));
         Unknown ->
-            io:format("json_socket_listener received message ~p~n", Unknown),
+            io:format("json_socket_listener received message ~p~n", [Unknown]),
             loop(Server, ServerSocket, InactiveConnector, Connectors)
     end.

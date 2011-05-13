@@ -32,6 +32,7 @@ init(Listener, ServerSocket) ->
 loop() ->
     receive
         Unknown ->
-            io:format("json_connector recieved unknown message: ~p~n", Unknown),
+            io:format("json_connector recieved unknown message: ~p~n",
+                      [Unknown]),
             loop()
     end.
