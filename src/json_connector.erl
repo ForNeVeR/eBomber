@@ -13,26 +13,49 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(json_connector).
--export([start_monitor/2]).
--export([init/2]).
+-export([start_monitor/3]).
+-export([init/3]).
 
 %% === Public functions ===
 
-start_monitor(Listener, ServerSocket) ->
-    {Pid, Ref} = spawn_monitor(?MODULE, init, [Listener, ServerSocket]),
+start_monitor(Listener, ServerSocket, Server) ->
+    {Pid, Ref} = spawn_monitor(?MODULE, init, [Listener, ServerSocket, Server]),
     {ok, Pid, Ref}.
 
 %% === Private functions ===
 
-init(Listener, ServerSocket) ->
+init(Listener, ServerSocket, Server) ->
     gen_tcp:accept(ServerSocket),
     Listener ! {self(), connected},
-    loop().
+    loop(Server, []).
 
-loop() ->
+loop(Server, PendingData) ->
     receive
+        {tcp_closed, _Socket} ->
+            Server ! {self(), client_disconnected};
+        {tcp_error, _Socket, _Reason} ->
+            Server ! {self(), client_disconnected};
+        {tcp, _Socket, Binary} ->
+            %% Recieving data...
+            Data = binary_to_list(Binary),
+            FullData = lists:append(PendingData, Data),
+            %% Null character as packet delimeter:
+            case lists:member(0, FullData) of
+                true ->
+                    Packet = lists:takewhile(fun(Byte) -> Byte =/= 0 end,
+                                              FullData),
+                    parse_packet(Server, Packet),
+                    loop(Server, lists:nthtail(length(Packet) + 1, FullData));
+                false ->
+                    loop(Server, FullData)
+            end;
         Unknown ->
-            io:format("json_connector recieved unknown message: ~p~n",
+            io:format("json_connector received unknown message: ~p~n",
                       [Unknown]),
-            loop()
+            loop(Server, PendingData)
     end.
+
+parse_packet(Server, Packet) ->
+    %% TODO: Parse JSON data and send it to server.
+    io:format("Parsing packet ~p~n", [Packet]),
+    ok.

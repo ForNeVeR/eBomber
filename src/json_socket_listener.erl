@@ -27,18 +27,18 @@ start_link(Server, Port) ->
 init(Server, Port) ->
     io:format("json_socket_server:init~n"),
     {ok, ServerSocket} = gen_tcp:listen(Port, [binary, {packet, raw}]),
-    {ok, Connector, Ref} = spawn_new_connector(ServerSocket),
+    {ok, Connector, Ref} = spawn_new_connector(ServerSocket, Server),
     loop(Server, ServerSocket, Connector, []).
 
-spawn_new_connector(ServerSocket) ->
-    json_connector:start_monitor(self(), ServerSocket).
+spawn_new_connector(ServerSocket, Server) ->
+    json_connector:start_monitor(self(), ServerSocket, Server).
 
 
 loop(Server, ServerSocket, InactiveConnector, Connectors) ->
     receive
         {Connector, connected} ->
             io:format("Client connected."),
-            {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket),
+            {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket, Server),
             loop(Server, ServerSocket, NewConnector,
                  lists:append(Connectors, Connector));
         Unknown ->
