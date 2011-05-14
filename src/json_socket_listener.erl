@@ -39,8 +39,7 @@ loop(Server, ServerSocket, InactiveConnector, Connectors) ->
         {Connector, connected} ->
             io:format("Client connected."),
             {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket, Server),
-            loop(Server, ServerSocket, NewConnector,
-                 lists:append(Connectors, Connector));
+            loop(Server, ServerSocket, NewConnector, [Connector | Connectors]);
         Unknown ->
             io:format("json_socket_listener received message ~p~n", [Unknown]),
             loop(Server, ServerSocket, InactiveConnector, Connectors)

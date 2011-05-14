@@ -100,7 +100,7 @@ process_request(State=#ebomber_state{}, Request) ->
             Player = {{session_id, SessionID = make_ref()},
                       {id, ID},
                       {email, EMail}},
-            NewPlayers = lists:append([Player], State#ebomber_state.players),
+            NewPlayers = [Player | State#ebomber_state.players],
             GamesInfo = lists:map(fun game_info/1, get_game_types()),
             Response = { 
               {status, "ok"},

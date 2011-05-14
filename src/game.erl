@@ -37,7 +37,7 @@ wait_loop(State=#game_wait_state {
            }) ->
     receive
         {Server, add_player, Name} ->
-            NewPlayers = lists:append([Players, [Name]]),
+            NewPlayers = [Name | Players],
             Server ! {self(), accepted, Name},
             if
                 length(NewPlayers) == MaxPlayers ->
