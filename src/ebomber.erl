@@ -19,13 +19,28 @@
 
 -behavior(gen_server).
 
-%% === State record ===
+%% === Records ===
 
 -record(ebomber_state,
         {
           players = [],
           games = []
         }).
+
+-record(game_type,
+       {
+         type_id = "",
+         turn_time = 0,
+         init_bombs_count = 0,
+         max_bombs_count = 0,
+         init_bomb_radius = 0,
+         bomb_delay = 0,
+         min_players_count = 0,
+         max_players_count = 0,
+         map_name = "",
+         map_width = 0,
+         map_height = 0
+       }).
 
 %% === Public functions ===
 
@@ -48,8 +63,7 @@ init([Port]) ->
 
 handle_call(Request, From, State) ->
     io:format("eBomber call with request ~p~n", [Request]),
-    NewState = handle_message(State, Request),
-    {noreply, NewState}.
+    {noreply, State}.
 
 handle_cast(Request, State) ->
     io:format("eBomber cast with request ~p~n", [Request]),
@@ -68,24 +82,43 @@ code_change(_OldVsn, State, _Extra) ->
 
 %% === Private functions ===
 
-handle_message(State, {received, Message}) ->
-    process(State, Message).
+handle_message(State, {received, Client, Request}) ->
+    {Response, NewState} = process_request(State, Request),
+    Client ! {reply, Response},
+    NewState.
 
-process(State=#ebomber_state{}, Message) ->
-    {cmd, Command} = lists:keyfind(cmd, 1, Message),
+process_request(State=#ebomber_state{}, Request) ->
+    {cmd, Command} = lists:keyfind(cmd, 1, Request),
     io:format("Processing command ~p~n", [Command]),
     case Command of
         "handshake" ->
-            EMail = extract_value(email, Message),
-            ID = extract_value(id, Message),
-            "player" = extract_value(type, Message),
+            EMail = extract_value(email, Request),
+            ID = extract_value(id, Request),
+            "player" = extract_value(type, Request),
+            %% TODO: Validate player.
 
-            io:format("Adding player with email ~p to player pool.", [EMail]),
-            Player = [{email, EMail}, {id, ID}],
+            Player = {{session_id, SessionID = make_ref()},
+                      {id, ID},
+                      {email, EMail}},
             NewPlayers = lists:append([Player], State#ebomber_state.players),
-            State#ebomber_state{players = NewPlayers}
+            GamesInfo = lists:map(fun game_info/1, get_game_types()),
+            Response = { 
+              {status, "ok"},
+              {session_id, SessionID},
+              {your_name, EMail}, %% TODO: Implement another naming mechanism.
+              {game_types, GamesInfo}
+             },
+            NewState = State#ebomber_state{players = NewPlayers},
+            {Response, NewState}
     end.
 
 extract_value(Key, TupleList) ->
     {Key, Value} = lists:keyfind(Key, 1, TupleList),
     Value.
+
+game_info({game_type, Info}) ->
+    Info.
+
+get_game_types() ->
+    %% TODO: Implement this function. Query config for available game types.
+    [#game_type{}].

@@ -60,7 +60,7 @@ parse_packet(Server, Packet) ->
     JSON = mochijson2:decode(Packet),
     Parsed = decode_json(JSON),
     io:format("Decoded object: ~p~n", [Parsed]),
-    ebomber:cast(Server, {received, Parsed}),
+    ebomber:cast(Server, {received, self(), Parsed}),
     ok.
 
 %% Receives packet in mochijson2 format (for example, {struct, {<<"key">>,
