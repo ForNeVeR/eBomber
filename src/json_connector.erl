@@ -44,7 +44,7 @@ loop(Server, PendingData) ->
                 true ->
                     Packet = lists:takewhile(fun(Byte) -> Byte =/= 0 end,
                                               FullData),
-                    parse_packet(Server, Packet),
+                    ok = parse_packet(Server, Packet),
                     loop(Server, lists:nthtail(length(Packet) + 1, FullData));
                 false ->
                     loop(Server, FullData)
@@ -56,6 +56,8 @@ loop(Server, PendingData) ->
     end.
 
 parse_packet(Server, Packet) ->
-    %% TODO: Parse JSON data and send it to server.
     io:format("Parsing packet ~p~n", [Packet]),
+    Parsed = mochijson2:decode(Packet),
+    io:format("Decoded object: ~p~n", [Parsed]),
+    ebomber:cast(Server, {received, Parsed}),
     ok.

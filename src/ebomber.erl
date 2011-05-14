@@ -13,7 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/0, start_link/1]).
+-export([start_link/0, start_link/1, cast/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -27,6 +27,9 @@ start_link() ->
 start_link(Port) ->
     io:format("ebomber:start_link~n"),
     gen_server:start_link(?MODULE, [Port], []).
+
+cast(Pid, Message) ->
+    gen_server:cast(Pid, Message).
 
 %% === gen_server behavior ===
 
