@@ -13,5 +13,5 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 
-{'src/*', [debug_info, {i, "src"}, {i, "include"}, {outdir, "ebin"}]}.
+{'src/*', [debug_info, {i, "include"}, {outdir, "ebin"}]}.
 {'lib/*', [debug_info, {outdir, "ebin"}]}.
