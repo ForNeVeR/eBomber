@@ -19,6 +19,14 @@
 
 -behavior(gen_server).
 
+%% === State record ===
+
+-record(ebomber_state,
+        {
+          players = [],
+          games = []
+        }).
+
 %% === Public functions ===
 
 start_link() ->
@@ -36,15 +44,17 @@ cast(Pid, Message) ->
 init([Port]) ->
     io:format("ebomber:init~n"),
     json_socket_listener:start_link(self(), Port),
-    {ok, []}.
+    {ok, #ebomber_state{}}.
 
 handle_call(Request, From, State) ->
     io:format("eBomber call with request ~p~n", [Request]),
-    {noreply, State}.
+    NewState = handle_message(State, Request),
+    {noreply, NewState}.
 
 handle_cast(Request, State) ->
     io:format("eBomber cast with request ~p~n", [Request]),
-    {noreply, State}.
+    NewState = handle_message(State, Request),
+    {noreply, NewState}.
 
 handle_info(Info, State) ->
     io:format("eBomber info message: ~p~n", [Info]),
@@ -55,3 +65,27 @@ terminate(normal, State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% === Private functions ===
+
+handle_message(State, {received, Message}) ->
+    process(State, Message).
+
+process(State=#ebomber_state{}, Message) ->
+    {cmd, Command} = lists:keyfind(cmd, 1, Message),
+    io:format("Processing command ~p~n", [Command]),
+    case Command of
+        "handshake" ->
+            EMail = extract_value(email, Message),
+            ID = extract_value(id, Message),
+            "player" = extract_value(type, Message),
+
+            io:format("Adding player with email ~p to player pool.", [EMail]),
+            Player = [{email, EMail}, {id, ID}],
+            NewPlayers = lists:append([Player], State#ebomber_state.players),
+            State#ebomber_state{players = NewPlayers}
+    end.
+
+extract_value(Key, TupleList) ->
+    {Key, Value} = lists:keyfind(Key, 1, TupleList),
+    Value.

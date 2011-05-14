@@ -57,7 +57,21 @@ loop(Server, PendingData) ->
 
 parse_packet(Server, Packet) ->
     io:format("Parsing packet ~p~n", [Packet]),
-    Parsed = mochijson2:decode(Packet),
+    JSON = mochijson2:decode(Packet),
+    Parsed = decode_json(JSON),
     io:format("Decoded object: ~p~n", [Parsed]),
     ebomber:cast(Server, {received, Parsed}),
     ok.
+
+%% Receives packet in mochijson2 format (for example, {struct, {<<"key">>,
+%% <<"value">>}}; constructs proper internal message from it (for example, {key,
+%% "value"}).
+decode_json(JSON) ->
+    {struct, Dictionary} = JSON,
+    lists:map(fun({Key, Value}) ->
+                      decode_pair(binary_to_atom(Key, utf8), Value)
+              end, Dictionary).
+
+%% TODO: Add cases for special data structures in Value variable.
+decode_pair(Key, Value) ->
+    {Key, binary_to_list(Value)}.
