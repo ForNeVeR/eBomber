@@ -50,6 +50,9 @@ Then start ebomber server:
 
     1> ebomber:start_link().
 
+Default listening port is 6666. You also may use function
+ebomber:start_link(Port) if you want to listen on another port.
+
 For now server only stays in memory and logs all incoming messages. Stay tuned.
 
 Architecture
