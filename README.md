@@ -23,7 +23,6 @@ for details. To build current version of source code, execute following
 commands:
 
     $ cd eBomber
-    $ md ebin
     $ erl -make
 
 Other way from Erlang console:
@@ -42,18 +41,28 @@ Other way from Erlang console:
 Using
 =====
 
-First, run Erlang console:
+### Starting server
+
+First, run Erlang console from the ebin directory:
 
     $ cd ebin && erl
 
 Then start ebomber server:
 
-    1> ebomber:start_link().
+    1> ebomber_app:start().
 
-Default listening port is 6666. You also may use function
-ebomber:start_link(Port) if you want to listen on another port.
+Default listening port is 6666. You also may use define port in the ebomber.app
+file.
 
 For now server only stays in memory and logs all incoming messages. Stay tuned.
+
+### Stopping server
+
+Use the following function call:
+
+    2> ebomber_app:stop().
+
+This will stop the whole application.
 
 Architecture
 ============
@@ -61,12 +70,18 @@ Architecture
 Note that project is still not finished, so this is more a notes about future
 project structure.
 
-### Overall
+### Common
 
 All internal data communication is performed in Erlang format; no JSON inside
 server. JSON data parsed when received from clients and created before sending
 to client by json_connector process/module. In future, server may be expanded to
 handle other data types and connection methods.
+
+### ebomber_app module
+
+This module implements Erlang application behavior and contains functions for
+starting and stopping whole application. It is the main entry point for the
+application user.
 
 ### ebomber module
 
@@ -90,3 +105,8 @@ Any connector module must have generic way to send some response back to client.
 
 game process spawns timer process at start, and may spawn bomb processes when
 the game is running.
+
+### map module
+
+Now this module only contains few helper functions for dealing with bomberbot
+maps.

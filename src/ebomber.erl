@@ -13,11 +13,11 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/0, start_link/1, cast/2]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
-         code_change/3]).
+-export([start_link/1, cast/2]).
 
 -behavior(gen_server).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
+         code_change/3]).
 
 %% === Records ===
 
@@ -43,9 +43,6 @@
        }).
 
 %% === Public functions ===
-
-start_link() ->
-    start_link(6666).
 
 start_link(Port) ->
     io:format("ebomber:start_link~n"),
@@ -102,7 +99,7 @@ process_request(State=#ebomber_state{}, Request) ->
                       {email, EMail}},
             NewPlayers = [Player | State#ebomber_state.players],
             GamesInfo = lists:map(fun game_info/1, get_game_types()),
-            Response = { 
+            Response = {
               {status, "ok"},
               {session_id, SessionID},
               {your_name, EMail}, %% TODO: Implement another naming mechanism.

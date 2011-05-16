@@ -19,12 +19,14 @@
 %% === Public functions ===
 
 start_monitor(Listener, ServerSocket, Server) ->
+    io:format("json_connector:start_monitor~n"),
     {Pid, Ref} = spawn_monitor(?MODULE, init, [Listener, ServerSocket, Server]),
     {ok, Pid, Ref}.
 
 %% === Private functions ===
 
 init(Listener, ServerSocket, Server) ->
+    io:format("json_connector:init~n"),
     gen_tcp:accept(ServerSocket),
     Listener ! {self(), connected},
     loop(Server, []).
