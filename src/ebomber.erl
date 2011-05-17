@@ -13,7 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/1, stop/1, cast/2]).
+-export([start_link/1, stop/1, received_data/2]).
 
 -behavior(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -52,8 +52,11 @@ start_link(Port) ->
 stop(PID) ->
     gen_server:call(PID, stop).
 
-cast(Pid, Message) ->
-    gen_server:cast(Pid, Message).
+%% == Functions for calls from connectors ==
+
+%% Sends data received from client to eBomber server.
+received_data(Server, Data) ->
+    gen_server:cast(Server, {received, self(), Data}).
 
 %% === gen_server behavior ===
 

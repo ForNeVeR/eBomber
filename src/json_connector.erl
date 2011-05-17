@@ -75,7 +75,7 @@ parse_packet(Server, Packet) ->
     JSON = mochijson2:decode(Packet),
     Parsed = decode_json_term(JSON),
     io:format("Decoded object: ~p~n", [Parsed]),
-    ebomber:cast(Server, {received, self(), Parsed}),
+    ebomber:received_data(Server, Parsed),
     ok.
 
 %% Decodes JSON terms from mochijson2 format to Erlang format.
