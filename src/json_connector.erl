@@ -73,20 +73,21 @@ loop(Server, PendingData) ->
 parse_packet(Server, Packet) ->
     io:format("Parsing packet ~p~n", [Packet]),
     JSON = mochijson2:decode(Packet),
-    Parsed = decode_json(JSON),
+    Parsed = decode_json_term(JSON),
     io:format("Decoded object: ~p~n", [Parsed]),
     ebomber:cast(Server, {received, self(), Parsed}),
     ok.
 
-%% Receives packet in mochijson2 format (for example, {struct, {<<"key">>,
-%% <<"value">>}}; constructs proper internal message from it (for example, {key,
-%% "value"}).
-decode_json(JSON) ->
-    {struct, Dictionary} = JSON,
-    lists:map(fun({Key, Value}) ->
-                      decode_pair(binary_to_atom(Key, utf8), Value)
-              end, Dictionary).
+%% Decodes JSON terms from mochijson2 format to Erlang format.
+decode_json_term(Number) when is_number(Number) ->
+    Number;
+decode_json_term(String) when is_binary(String) ->
+    %% TODO: Parse string as unicode.
+    binary_to_list(String);
+decode_json_term(List) when is_list(List) ->
+    lists:map(fun decode_json_term/1, List);
+decode_json_term({struct, Dictionary}) ->
+    lists:map(fun decode_json_pair/1, Dictionary).
 
-%% TODO: Add cases for special data structures in Value variable.
-decode_pair(Key, Value) ->
-    {Key, binary_to_list(Value)}.
+decode_json_pair({Key, Value}) ->
+    {binary_to_atom(Key, utf8), decode_json_term(Value)}.
