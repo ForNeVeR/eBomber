@@ -33,13 +33,29 @@ init(Server, Port) ->
 spawn_new_connector(ServerSocket, Server) ->
     json_connector:start_monitor(self(), ServerSocket, Server).
 
-
 loop(Server, ServerSocket, InactiveConnector, Connectors) ->
     receive
         {Connector, connected} ->
             io:format("Client connected."),
             {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket, Server),
             loop(Server, ServerSocket, NewConnector, [Connector | Connectors]);
+        stop ->
+            Statuses = lists:map(fun json_connector:stop/1, Connectors),
+            %% Stop inactive connector:
+            gen_tcp:close(ServerSocket),
+            receive
+                {InactiveConnector, closed} ->
+                    InactiveClosed = ok
+            after 5000 ->
+                    InactiveClosed = error
+            end,
+            case lists:all(fun(Elem) -> Elem =:= ok end,
+                           [InactiveClosed | Statuses]) of
+                true ->
+                     Server ! {self(), stopped};
+                false ->
+                    Server ! {self(), stopped_with_error}
+            end;
         Unknown ->
             io:format("json_socket_listener received message ~p~n", [Unknown]),
             loop(Server, ServerSocket, InactiveConnector, Connectors)

@@ -13,7 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(json_connector).
--export([start_monitor/3]).
+-export([start_monitor/3, stop/1]).
 -export([init/3]).
 
 %% === Public functions ===
@@ -23,13 +23,26 @@ start_monitor(Listener, ServerSocket, Server) ->
     {Pid, Ref} = spawn_monitor(?MODULE, init, [Listener, ServerSocket, Server]),
     {ok, Pid, Ref}.
 
+stop(PID) ->
+    PID ! stop,
+    receive
+        {PID, stopped} ->
+             ok
+    after 30000 ->
+            timeout
+    end.
+
 %% === Private functions ===
 
 init(Listener, ServerSocket, Server) ->
     io:format("json_connector:init~n"),
-    gen_tcp:accept(ServerSocket),
-    Listener ! {self(), connected},
-    loop(Server, []).
+    case gen_tcp:accept(ServerSocket) of
+        {ok, _Socket} ->
+            Listener ! {self(), connected},
+            loop(Server, []);
+        {error, closed} ->
+            Listener ! {self(), closed}
+    end.
 
 loop(Server, PendingData) ->
     receive

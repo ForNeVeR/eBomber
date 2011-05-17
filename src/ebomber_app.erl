@@ -31,13 +31,15 @@ stop() ->
 start(normal, [Port]) ->
     io:format("ebomber starting~n"),
     {ok, PID} = ebomber:start_link(Port),
-    {ok, PID}.
+    State = [PID],
+    {ok, PID, State}.
 
 start_phase(_, _) ->
     {error, not_implemented}.
 
-prep_stop(State) ->
-    %% TODO: ebomber:stop().
+prep_stop([PID]) ->
+    ebomber:stop(PID),
+    State = [],
     State.
 
 stop(_) ->

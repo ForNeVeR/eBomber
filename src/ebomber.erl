@@ -13,7 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/1, cast/2]).
+-export([start_link/1, stop/1, cast/2]).
 
 -behavior(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -23,6 +23,7 @@
 
 -record(ebomber_state,
         {
+          listener = undefined,
           players = [],
           games = []
         }).
@@ -48,6 +49,9 @@ start_link(Port) ->
     io:format("ebomber:start_link~n"),
     gen_server:start_link(?MODULE, [Port], []).
 
+stop(PID) ->
+    gen_server:call(PID, stop).
+
 cast(Pid, Message) ->
     gen_server:cast(Pid, Message).
 
@@ -55,9 +59,12 @@ cast(Pid, Message) ->
 
 init([Port]) ->
     io:format("ebomber:init~n"),
-    json_socket_listener:start_link(self(), Port),
-    {ok, #ebomber_state{}}.
+    Listener = json_socket_listener:start_link(self(), Port),
+    {ok, #ebomber_state{listener=Listener}}.
 
+handle_call(stop, From, State) ->
+    io:format("eBomber received stop request~n"),
+    {stop, normal, State};
 handle_call(Request, From, State) ->
     io:format("eBomber call with request ~p~n", [Request]),
     {noreply, State}.
@@ -72,7 +79,16 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(normal, State) ->
-    ok.
+    io:format("ebomber stopping~n"),
+    Listener = State#ebomber_state.listener,
+    Listener ! stop,
+    receive
+        {Listener, stopped} ->
+            ok
+    after 30000 ->
+            error
+    end,
+    io:format("ebomber stopped~n").
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
