@@ -66,10 +66,10 @@ init([Port]) ->
     {ok, #ebomber_state{listener=Listener}}.
 
 handle_call(stop, From, State) ->
-    io:format("eBomber received stop request~n"),
+    io:format("ebomber received stop request~n"),
     {stop, normal, State};
 handle_call(Request, From, State) ->
-    io:format("eBomber call with request ~p~n", [Request]),
+    io:format("ebomber call with request ~p~n", [Request]),
     {noreply, State}.
 
 handle_cast(Request, State) ->
@@ -82,7 +82,7 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 terminate(normal, State) ->
-    io:format("ebomber stopping~n"),
+    io:format("ebomber:terminate~n"),
     Listener = State#ebomber_state.listener,
     Listener ! stop,
     receive
@@ -91,7 +91,7 @@ terminate(normal, State) ->
     after 30000 ->
             error
     end,
-    io:format("ebomber stopped~n").
+    io:format("ebomber terminated~n").
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
