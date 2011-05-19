@@ -77,6 +77,27 @@ server. JSON data parsed when received from clients and created before sending
 to client by json_connector process/module. In future, server may be expanded to
 handle other data types and connection methods.
 
+### Data format
+
+Inside server, all data packets represented as Erlang terms. Here I'll note
+differences between JSON and Erlang data formats.
+
+Please note that eBomber do not use mochijson2's object notation. I think it's
+slightly confusing.
+
+JSON struct / object maps to Erlang tuple of tuples. Keys are always represented
+by atoms, values vary. For example, following JSON object:
+
+    { "key1": "value1", "key2": "value2" }
+
+may be represented as Erlang term
+
+    {{key1, <<"value1">>}, {key2, <<"value2">>}}
+
+Strings are always saved as binaries; never as lists (see previous example).
+
+Lists stored as lists, numbers as numbers. Nothing to add here.
+
 ### ebomber_app module
 
 This module implements Erlang application behavior and contains functions for
