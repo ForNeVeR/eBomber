@@ -132,9 +132,33 @@ extract_value(Key, TupleList) ->
     {Key, Value} = lists:keyfind(Key, 1, TupleList),
     Value.
 
-game_info({game_type, Info}) ->
-    Info.
+game_info(GameType=#game_type{}) ->
+    {
+      {type_id, GameType#game_type.type_id},
+      {turn_time, GameType#game_type.turn_time},
+      {init_bombs_count, GameType#game_type.init_bombs_count},
+      {max_bombs_count, GameType#game_type.max_bombs_count},
+      {init_bomb_radius, GameType#game_type.init_bomb_radius},
+      {bomb_delay, GameType#game_type.bomb_delay},
+      {min_players_count, GameType#game_type.min_players_count},
+      {max_players_count, GameType#game_type.max_players_count},
+      {map_name, GameType#game_type.map_name},
+      {map_width, GameType#game_type.map_width},
+      {map_height, GameType#game_type.map_height}
+    }.
 
 get_game_types() ->
     %% TODO: Implement this function. Query config for available game types.
-    [#game_type{}].
+    [#game_type{
+        type_id = "test_game",
+        turn_time = 30000,
+        init_bombs_count = 1,
+        max_bombs_count = 1,
+        init_bomb_radius = 1,
+        bomb_delay = 1,
+        min_players_count = 2,
+        max_players_count = 2,
+        map_name = "standard",
+        map_width = 5,
+        map_height = 5
+       }].
