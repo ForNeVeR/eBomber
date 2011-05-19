@@ -37,20 +37,20 @@ stop(PID) ->
 init(Listener, ServerSocket, Server) ->
     io:format("json_connector:init~n"),
     case gen_tcp:accept(ServerSocket) of
-        {ok, _Socket} ->
+        {ok, Socket} ->
             Listener ! {self(), connected},
-            loop(Server, []);
+            loop(Socket, Server, []);
         {error, closed} ->
             Listener ! {self(), closed}
     end.
 
-loop(Server, PendingData) ->
+loop(Socket, Server, PendingData) ->
     receive
-        {tcp_closed, _Socket} ->
+        {tcp_closed, Socket} ->
             Server ! {self(), client_disconnected};
-        {tcp_error, _Socket, _Reason} ->
+        {tcp_error, Socket, _Reason} ->
             Server ! {self(), client_disconnected};
-        {tcp, _Socket, Binary} ->
+        {tcp, Socket, Binary} ->
             %% Recieving data...
             Data = binary_to_list(Binary),
             FullData = lists:append(PendingData, Data),
@@ -60,14 +60,20 @@ loop(Server, PendingData) ->
                     Packet = lists:takewhile(fun(Byte) -> Byte =/= 0 end,
                                               FullData),
                     ok = parse_packet(Server, Packet),
-                    loop(Server, lists:nthtail(length(Packet) + 1, FullData));
+                    loop(Socket, Server, lists:nthtail(length(Packet) + 1,
+                                                       FullData));
                 false ->
-                    loop(Server, FullData)
+                    loop(Socket, Server, FullData)
             end;
+        {reply, Term} ->
+            io:format("Sending term to client: ~p~n", [Term]),
+            Packet = prepare_packet(Term),
+            gen_tcp:send(Socket, Packet),
+            loop(Socket, Server, PendingData);
         Unknown ->
             io:format("json_connector received unknown message: ~p~n",
                       [Unknown]),
-            loop(Server, PendingData)
+            loop(Socket, Server, PendingData)
     end.
 
 parse_packet(Server, Packet) ->
@@ -78,16 +84,45 @@ parse_packet(Server, Packet) ->
     ebomber:received_data(Server, Parsed),
     ok.
 
+prepare_packet(Term) ->
+    JSON = term_to_json(Term),
+    io:format("Formed JSON: ~p~n", [JSON]),
+    Data = my_flatten(mochijson2:encode(JSON)),
+    io:format("Prepared packet: ~p~n", [Data]),
+    lists:append(Data, "\0").
+
+%% Flattens list and all binaries inside it.
+%% Yeah, I know, it is not the best solution...
+my_flatten(Byte) when is_integer(Byte) ->
+    [Byte];
+my_flatten(List) when is_list(List) ->
+    lists:append(lists:map(fun my_flatten/1, List));
+my_flatten(Binary) when is_binary(Binary) ->
+    binary_to_list(Binary).
+
 %% Decodes JSON terms from mochijson2 format to Erlang format.
 decode_json_term(Number) when is_number(Number) ->
     Number;
 decode_json_term(String) when is_binary(String) ->
-    %% TODO: Parse string as unicode.
-    binary_to_list(String);
+    %% TODO: Parse string as unicode?
+    String;
 decode_json_term(List) when is_list(List) ->
     lists:map(fun decode_json_term/1, List);
 decode_json_term({struct, Dictionary}) ->
-    lists:map(fun decode_json_pair/1, Dictionary).
+    list_to_tuple(lists:map(fun decode_json_pair/1, Dictionary)).
 
 decode_json_pair({Key, Value}) ->
     {binary_to_atom(Key, utf8), decode_json_term(Value)}.
+
+term_to_json({Key, Value}) when is_atom(Key) ->
+    {atom_to_binary(Key, utf8), term_to_json(Value)};
+term_to_json(Object) when is_tuple(Object) ->
+    {struct, lists:map(fun term_to_json/1, tuple_to_list(Object))};
+term_to_json(Number) when is_number(Number) ->
+    Number;
+term_to_json(Ref) when is_reference(Ref) ->
+    list_to_binary(io_lib:format("~p", [Ref]));
+term_to_json(List) when is_list(List) ->
+    lists:map(fun term_to_json/1, List);
+term_to_json(String) when is_binary(String) ->
+    String.

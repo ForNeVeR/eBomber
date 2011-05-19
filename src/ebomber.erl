@@ -30,7 +30,7 @@
 
 -record(game_type,
        {
-         type_id = "",
+         type_id = <<"">>,
          turn_time = 0,
          init_bombs_count = 0,
          max_bombs_count = 0,
@@ -38,7 +38,7 @@
          bomb_delay = 0,
          min_players_count = 0,
          max_players_count = 0,
-         map_name = "",
+         map_name = <<"">>,
          map_width = 0,
          map_height = 0
        }).
@@ -104,13 +104,13 @@ handle_message(State, {received, Client, Request}) ->
     NewState.
 
 process_request(State=#ebomber_state{}, Request) ->
-    {cmd, Command} = lists:keyfind(cmd, 1, Request),
+    Command = extract_value(cmd, Request),
     io:format("Processing command ~p~n", [Command]),
     case Command of
-        "handshake" ->
+        <<"handshake">> ->
             EMail = extract_value(email, Request),
             ID = extract_value(id, Request),
-            "player" = extract_value(type, Request),
+            <<"player">> = extract_value(type, Request),
             %% TODO: Validate player.
 
             Player = {{session_id, SessionID = make_ref()},
@@ -119,7 +119,7 @@ process_request(State=#ebomber_state{}, Request) ->
             NewPlayers = [Player | State#ebomber_state.players],
             GamesInfo = lists:map(fun game_info/1, get_game_types()),
             Response = {
-              {status, "ok"},
+              {status, <<"ok">>},
               {session_id, SessionID},
               {your_name, EMail}, %% TODO: Implement another naming mechanism.
               {game_types, GamesInfo}
@@ -128,8 +128,9 @@ process_request(State=#ebomber_state{}, Request) ->
             {Response, NewState}
     end.
 
-extract_value(Key, TupleList) ->
-    {Key, Value} = lists:keyfind(Key, 1, TupleList),
+extract_value(Key, TupleOfTuples) ->
+    ListOfTuples = tuple_to_list(TupleOfTuples),
+    {Key, Value} = lists:keyfind(Key, 1, ListOfTuples),
     Value.
 
 game_info(GameType=#game_type{}) ->
@@ -150,7 +151,7 @@ game_info(GameType=#game_type{}) ->
 get_game_types() ->
     %% TODO: Implement this function. Query config for available game types.
     [#game_type{
-        type_id = "test_game",
+        type_id = <<"test_game">>,
         turn_time = 30000,
         init_bombs_count = 1,
         max_bombs_count = 1,
@@ -158,7 +159,7 @@ get_game_types() ->
         bomb_delay = 1,
         min_players_count = 2,
         max_players_count = 2,
-        map_name = "standard",
+        map_name = <<"standard">>,
         map_width = 5,
         map_height = 5
        }].
