@@ -65,10 +65,11 @@ loop(Socket, Server, PendingData) ->
                 false ->
                     loop(Socket, Server, FullData)
             end;
-        {reply, Term} ->
-            io:format("Sending term to client: ~p~n", [Term]),
-            Packet = prepare_packet(Term),
-            gen_tcp:send(Socket, Packet),
+        {reply, Message} ->
+            io:format("Sending message to client: ~p~n", [Message]),
+            gen_tcp:send(Socket,
+                         lists:append(json_converter:message_to_json(Message),
+                                      [0])),
             loop(Socket, Server, PendingData);
         Unknown ->
             io:format("json_connector received unknown message: ~p~n",
@@ -78,51 +79,7 @@ loop(Socket, Server, PendingData) ->
 
 parse_packet(Server, Packet) ->
     io:format("Parsing packet ~p~n", [Packet]),
-    JSON = mochijson2:decode(Packet),
-    Parsed = decode_json_term(JSON),
-    io:format("Decoded object: ~p~n", [Parsed]),
-    ebomber:received_data(Server, Parsed),
+    Message = json_converter:json_to_message(Packet),
+    io:format("Received message: ~p~n", [Message]),
+    ebomber:received_data(Server, Message),
     ok.
-
-prepare_packet(Term) ->
-    JSON = term_to_json(Term),
-    io:format("Formed JSON: ~p~n", [JSON]),
-    Data = my_flatten(mochijson2:encode(JSON)),
-    io:format("Prepared packet: ~p~n", [Data]),
-    lists:append(Data, "\0").
-
-%% Flattens list and all binaries inside it.
-%% Yeah, I know, it is not the best solution...
-my_flatten(Byte) when is_integer(Byte) ->
-    [Byte];
-my_flatten(List) when is_list(List) ->
-    lists:append(lists:map(fun my_flatten/1, List));
-my_flatten(Binary) when is_binary(Binary) ->
-    binary_to_list(Binary).
-
-%% Decodes JSON terms from mochijson2 format to Erlang format.
-decode_json_term(Number) when is_number(Number) ->
-    Number;
-decode_json_term(String) when is_binary(String) ->
-    %% TODO: Parse string as unicode?
-    String;
-decode_json_term(List) when is_list(List) ->
-    lists:map(fun decode_json_term/1, List);
-decode_json_term({struct, Dictionary}) ->
-    list_to_tuple(lists:map(fun decode_json_pair/1, Dictionary)).
-
-decode_json_pair({Key, Value}) ->
-    {binary_to_atom(Key, utf8), decode_json_term(Value)}.
-
-term_to_json({Key, Value}) when is_atom(Key) ->
-    {atom_to_binary(Key, utf8), term_to_json(Value)};
-term_to_json(Object) when is_tuple(Object) ->
-    {struct, lists:map(fun term_to_json/1, tuple_to_list(Object))};
-term_to_json(Number) when is_number(Number) ->
-    Number;
-term_to_json(Ref) when is_reference(Ref) ->
-    list_to_binary(io_lib:format("~p", [Ref]));
-term_to_json(List) when is_list(List) ->
-    lists:map(fun term_to_json/1, List);
-term_to_json(String) when is_binary(String) ->
-    String.
