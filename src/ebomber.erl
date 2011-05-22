@@ -24,8 +24,15 @@
 -record(ebomber_state,
         {
           listener = undefined,
-          players = [],
+          clients = [],
           games = []
+        }).
+
+-record(client,
+        {
+          type = undefined,
+          pid = undefined,
+          session_id = <<"">>
         }).
 
 -record(game_type,
@@ -65,7 +72,7 @@ init([Port]) ->
     Listener = json_socket_listener:start_link(self(), Port),
     {ok, #ebomber_state{listener=Listener}}.
 
-handle_call(stop, From, State) ->
+handle_call(stop, _From, State) ->
     io:format("ebomber received stop request~n"),
     {stop, normal, State};
 handle_call(Request, From, State) ->
@@ -99,46 +106,82 @@ code_change(_OldVsn, State, _Extra) ->
 %% === Private functions ===
 
 handle_message(State, {received, Client, Message}) ->
-    {Response, NewState} = process_message(State, Message),
+    {Response, NewState} = process_message(State, Client, Message),
     Client ! {reply, Response},
     NewState.
 
-process_message(State=#ebomber_state{}, Message) ->
+process_message(State=#ebomber_state{}, From, Message) ->
     Command = message:get_value(cmd, Message),
     io:format("Processing command ~p~n", [Command]),
     case Command of
         <<"handshake">> ->
             EMail = message:get_value(email, Message),
-            ID = message:get_value(id, Message),
-            <<"player">> = message:get_value(type, Message),
-            %% TODO: Validate player.
+            _ID = message:get_value(id, Message), % TODO: Use ID for something?
+            SessionID = list_to_binary(io_lib:format("~p", [make_ref()])),
+            %% TODO: Use other representation of reference here?
 
-            Player = {{session_id, SessionID = make_ref()},
-                      {id, ID},
-                      {email, EMail}},
-            NewPlayers = [Player | State#ebomber_state.players],
-            GamesInfo = lists:map(fun game_info/1, get_game_types()),
-            Response = message:create([
-              message:create_key_value(status, <<"ok">>),
-              message:create_key_value(session_id, SessionID),
-              message:create_key_value(your_name, EMail),
-              %% TODO: Implement another naming mechanism.
-              message:create_key_value(game_types, GamesInfo)
-             ]),
-            NewState = State#ebomber_state{players = NewPlayers},
-            {Response, NewState}
+            case message:get_value(type, Message) of
+                <<"player">> ->
+                    Player = #client{
+                      type = player,
+                      pid = From,
+                      session_id = SessionID
+                     },
+                    NewClients = [Player | State#ebomber_state.clients],
+                    GamesInfo = lists:map(fun game_info/1, get_game_types()),
+                    Response = message:create(
+                                 [
+                                  message:create_key_value(status, <<"ok">>),
+                                  message:create_key_value(session_id,
+                                                           SessionID),
+                                  message:create_key_value(your_name, EMail),
+                                  %% TODO: Implement another naming mechanism?
+                                  message:create_key_value(game_types,
+                                                           GamesInfo)
+                                 ]),
+                    NewState = State#ebomber_state{clients = NewClients},
+                    {Response, NewState};
+                <<"observer">> ->
+                    Observer = #client{
+                      type = observer,
+                      pid = From,
+                      session_id = SessionID
+                     },
+                    NewClients = [Observer | State#ebomber_state.clients],
+
+                    %% TODO: Response with information about available game
+                    %% types AND currently running games.
+                    GamesInfo = lists:map(fun game_info/1, get_game_types()),
+                    Response = message:create(
+                                 [
+                                  message:create_key_value(status, <<"ok">>),
+                                  message:create_key_value(session_id,
+                                                           SessionID),
+                                  message:create_key_value(your_name, EMail),
+                                  %% TODO: Implement another naming mechanism?
+                                  message:create_key_value(game_types,
+                                                           GamesInfo)
+                                 ]),
+                    NewState = State#ebomber_state{clients = NewClients},
+                    {Response, NewState}
+            end
     end.
 
 game_info(GameType=#game_type{}) ->
     message:create([
       message:create_key_value(type_id, GameType#game_type.type_id),
       message:create_key_value(turn_time, GameType#game_type.turn_time),
-      message:create_key_value(init_bombs_count, GameType#game_type.init_bombs_count),
-      message:create_key_value(max_bombs_count, GameType#game_type.max_bombs_count),
-      message:create_key_value(init_bomb_radius, GameType#game_type.init_bomb_radius),
+      message:create_key_value(init_bombs_count,
+                               GameType#game_type.init_bombs_count),
+      message:create_key_value(max_bombs_count,
+                               GameType#game_type.max_bombs_count),
+      message:create_key_value(init_bomb_radius,
+                               GameType#game_type.init_bomb_radius),
       message:create_key_value(bomb_delay, GameType#game_type.bomb_delay),
-      message:create_key_value(min_players_count, GameType#game_type.min_players_count),
-      message:create_key_value(max_players_count, GameType#game_type.max_players_count),
+      message:create_key_value(min_players_count,
+                               GameType#game_type.min_players_count),
+      message:create_key_value(max_players_count,
+                               GameType#game_type.max_players_count),
       message:create_key_value(map_name, GameType#game_type.map_name),
       message:create_key_value(map_width, GameType#game_type.map_width),
       message:create_key_value(map_height, GameType#game_type.map_height)

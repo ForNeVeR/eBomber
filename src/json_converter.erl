@@ -40,8 +40,6 @@ term_to_json(Object) when is_tuple(Object) ->
     {struct, lists:map(fun term_to_json/1, tuple_to_list(Object))};
 term_to_json(Number) when is_number(Number) ->
     Number;
-term_to_json(Ref) when is_reference(Ref) ->
-    list_to_binary(io_lib:format("~p", [Ref]));
 term_to_json(List) when is_list(List) ->
     lists:map(fun term_to_json/1, List);
 term_to_json(String) when is_binary(String) ->
