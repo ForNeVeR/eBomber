@@ -13,16 +13,17 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 
--record(coords,
-        {
-          x=0,
-          y=0
-        }).
-
-%% Record for game map.
--record(map,
-        {
-          size_x=0,
-          size_y=0,
-          objects=[]
-        }).
+-record(game_type,
+       {
+         type_id = <<"">>,
+         turn_time = 0,
+         init_bombs_count = 0,
+         max_bombs_count = 0,
+         init_bomb_radius = 0,
+         bomb_delay = 0,
+         min_players_count = 0,
+         max_players_count = 0,
+         map_name = <<"">>,
+         map_width = 0,
+         map_height = 0
+       }).

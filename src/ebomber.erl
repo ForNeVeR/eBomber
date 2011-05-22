@@ -19,6 +19,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
+-include("game_type.hrl").
+
 %% === Records ===
 
 -record(ebomber_state,
@@ -34,21 +36,6 @@
           pid = undefined,
           session_id = <<"">>
         }).
-
--record(game_type,
-       {
-         type_id = <<"">>,
-         turn_time = 0,
-         init_bombs_count = 0,
-         max_bombs_count = 0,
-         init_bomb_radius = 0,
-         bomb_delay = 0,
-         min_players_count = 0,
-         max_players_count = 0,
-         map_name = <<"">>,
-         map_width = 0,
-         map_height = 0
-       }).
 
 %% === Public functions ===
 

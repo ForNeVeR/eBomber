@@ -13,54 +13,47 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(game).
--export([start/4, wait_loop/1]).
+-export([start/2, add_player/2, cancel/1]).
+-export([init/2]).
 
--include("game.hrl").
+-include("game_type.hrl").
 
 %% === Public functions ===
 
-start(Name, MinPlayers, MaxPlayers, Map) ->
-    spawn_link(?MODULE, wait_loop, [#game_wait_state {
-                                      name=Name,
-                                      min_players=MinPlayers,
-                                      max_players=MaxPlayers,
-                                      players=[],
-                                      map=Map
-                                    }]).
+start(Server, Type) ->
+    spawn_link(?MODULE, init, [Server, Type]).
 
-wait_loop(State=#game_wait_state {
-            name=Name,
-            min_players=MinPlayers,
-            max_players=MaxPlayers,
-            players=Players,
-            map=Map
-           }) ->
-    receive
-        {Server, add_player, Name} ->
-            NewPlayers = [Name | Players],
-            Server ! {self(), accepted, Name},
-            if
-                length(NewPlayers) == MaxPlayers ->
-                    Server ! {self(), started},
-                    game_loop(#game_running_state {
-                                 name=Name,
-                                 players=NewPlayers,
-                                 map=Map
-                              });
-                true ->
-                    wait_loop(State#game_wait_state {
-                                players=NewPlayers
-                               })
-            end;
-        {Server, cancel} ->
-            Server ! {self(), ok};
-        Unknown ->
-            io:format("game recieved unknown message: ~p~n", [Unknown]),
-            wait_loop(State)
-    end.
+add_player(Game, Player) ->
+    Game ! {add_player, Player}.
+
+cancel(Game) ->
+    Game ! cancel.
 
 %% === Private functions ===
 
+init(Server, Type) ->
+    wait_loop(Server, Type, []).
+
+wait_loop(Server, Type = #game_type{max_players_count = MaxPlayers}, Players) ->
+    receive
+        {add_player, Player} ->
+            NewPlayers = [Player | Players],
+            Server ! {self(), accepted, Player},
+            if
+                length(NewPlayers) =:= MaxPlayers ->
+                    Server ! {self(), started},
+                    game_loop({}); % TODO: Fill some valid state here.
+                length(NewPlayers) < MaxPlayers ->
+                    wait_loop(Server, Type, NewPlayers)
+            end;
+        cancel ->
+            Server ! {self(), ok};
+        Unknown ->
+            io:format("game recieved unknown message: ~p~n", [Unknown]),
+            wait_loop(Server, Type, Players)
+    end.
+
+
 %% TODO: Finish this function.
-game_loop(State=#game_running_state{}) ->
+game_loop(State) ->
     io:format("game:game_loop, State = ~p~n", [State]).
