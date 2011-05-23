@@ -13,12 +13,6 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 
--record(coords,
-        {
-          x=0,
-          y=0
-        }).
-
 %% Record for game map.
 -record(map,
         {

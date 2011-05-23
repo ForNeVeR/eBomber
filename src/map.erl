@@ -15,7 +15,7 @@
 -module(map).
 -export([new/0, new/2, new/3]).
 
--include("game.hrl").
+-include("map.hrl").
 
 %% === Public functions ===
 
