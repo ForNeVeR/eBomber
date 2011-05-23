@@ -13,7 +13,8 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/1, stop/1, received_data/2]).
+-export([start_link/1, stop/1, received_data/2, player_accepted/2,
+         game_started/1]).
 
 -behavior(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -46,11 +47,15 @@ start_link(Port) ->
 stop(PID) ->
     gen_server:call(PID, stop).
 
-%% == Functions for calls from connectors ==
-
 %% Sends data received from client to eBomber server.
 received_data(Server, Data) ->
     gen_server:cast(Server, {received, self(), Data}).
+
+player_accepted(Server, Player) ->
+    gen_server:cast(Server, {player_accepted, self(), Player}).
+
+game_started(Server) ->
+    gen_server:cast(Server, {game_started, self()}).
 
 %% === gen_server behavior ===
 
@@ -75,17 +80,14 @@ handle_info(Info, State) ->
     io:format("eBomber info message: ~p~n", [Info]),
     {noreply, State}.
 
-terminate(normal, State) ->
+terminate(normal, State=#ebomber_state{}) ->
     io:format("ebomber:terminate~n"),
-    Listener = State#ebomber_state.listener,
-    Listener ! stop,
-    receive
-        {Listener, stopped} ->
-            ok
-    after 30000 ->
-            error
-    end,
-    io:format("ebomber terminated~n").
+    io:format("Stopping listener...~n"),
+    ok = stop_listener(State#ebomber_state.listener),
+    io:format("Cancelling games...~n"),
+    ok = cancel_games(State#ebomber_state.games),
+    io:format("ebomber terminated~n"),
+    ok.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -95,7 +97,13 @@ code_change(_OldVsn, State, _Extra) ->
 handle_message(State, {received, Client, Message}) ->
     {Response, NewState} = process_message(State, Client, Message),
     Client ! {reply, Response},
-    NewState.
+    NewState;
+handle_message(State, {player_accepted, Game, Player}) ->
+    %% TODO: Add player to list of game players.
+    State;
+handle_message(State, {game_started, Game}) ->
+    %% TODO: Add game to list of currently running games.
+    State.
 
 process_message(State=#ebomber_state{}, From, Message) ->
     Command = message:get_value(cmd, Message),
@@ -151,7 +159,17 @@ process_message(State=#ebomber_state{}, From, Message) ->
                                  ]),
                     NewState = State#ebomber_state{clients = NewClients},
                     {Response, NewState}
-            end
+            end;
+        <<"join">> ->
+            SessionID = message:get_value(session_id, Message),
+            TypeID = message:get_value(type_id, Message),
+            %% TODO: Join player to game.
+            {undefined, State};
+        <<"watch">> ->
+            SessionID = message:get_value(session_id, Message),
+            GameID = message:get_value(game_id, Message),
+            %% TODO: Register watcher for running game.
+            {undefined, State}
     end.
 
 game_info(GameType=#game_type{}) ->
@@ -189,3 +207,18 @@ get_game_types() ->
         map_width = 5,
         map_height = 5
        }].
+
+stop_listener(Listener) ->
+    Listener ! stop,
+    receive
+        {Listener, stopped} ->
+            ok
+    after 5000 ->
+            error
+    end.
+
+cancel_games([]) ->
+    ok;
+cancel_games([Game, Other]) ->
+    ok = game:cancel(Game),
+    cancel_games(Other).

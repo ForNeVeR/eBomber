@@ -27,7 +27,13 @@ add_player(Game, Player) ->
     Game ! {add_player, Player}.
 
 cancel(Game) ->
-    Game ! cancel.
+    Game ! cancel,
+    receive
+        {cancelled, Game} ->
+            ok
+    after 5000 ->
+            error
+    end.
 
 %% === Private functions ===
 
@@ -38,16 +44,16 @@ wait_loop(Server, Type = #game_type{max_players_count = MaxPlayers}, Players) ->
     receive
         {add_player, Player} ->
             NewPlayers = [Player | Players],
-            Server ! {self(), accepted, Player},
+            ebomber:player_accepted(Server , Player),
             if
                 length(NewPlayers) =:= MaxPlayers ->
-                    Server ! {self(), started},
+                    ebomber:game_started(Server),
                     game_loop({}); % TODO: Fill some valid state here.
                 length(NewPlayers) < MaxPlayers ->
                     wait_loop(Server, Type, NewPlayers)
             end;
         cancel ->
-            Server ! {self(), ok};
+            Server ! {cancelled, self()};
         Unknown ->
             io:format("game recieved unknown message: ~p~n", [Unknown]),
             wait_loop(Server, Type, Players)
