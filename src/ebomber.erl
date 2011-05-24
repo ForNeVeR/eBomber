@@ -126,7 +126,7 @@ process_message(State = #ebomber_state{
         <<"handshake">> ->
             EMail = message:get_value(email, Message),
             _ID = message:get_value(id, Message), % TODO: Use ID for something?
-            SessionID = list_to_binary(io_lib:format("~p", [make_ref()])),
+            SessionID = make_unique_id(),
             %% TODO: Use other representation of reference here?
 
             case message:get_value(type, Message) of
@@ -191,6 +191,9 @@ process_message(State = #ebomber_state{
             {undefined, State#ebomber_state{games = NewGameList}}
                                                 % TODO: What must be responsed?
     end.
+
+make_unique_id() ->
+    list_to_binary(io_lib:format("~p", [make_ref()])). % TODO: Something better?
 
 game_info(GameType = #game_type{}) ->
     message:create([
@@ -259,7 +262,7 @@ find_client({PID, SessionID}, ClientList) ->
 add_player_to_game(Player, TypeID, GameList, GameTypes) ->
     case find_free_game(TypeID, GameList) of
         {ok, Game} ->
-            %% TODO: Start game if needed amount of players available.
+            %% TODO: Run game if needed amount of players available.
             OldPlayers = Game#game.players,
             replace_game(Game, Game#game{
                                  players = [Player | OldPlayers]
@@ -312,7 +315,12 @@ replace_game(From, To, List) ->
 
 new_game(TypeID, GameTypes) ->
     Type = find_game_type(TypeID, GameTypes),
-    game:start(self(), Type).
+    PID = game:start(self(), Type),
+    #game{
+      pid = PID,
+      type_id = TypeID,
+      game_id = make_unique_id()
+     }.
 
 stop_listener(Listener) ->
     Listener ! stop,
