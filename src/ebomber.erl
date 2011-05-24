@@ -76,7 +76,7 @@ init([Port]) ->
     Listener = json_socket_listener:start_link(self(), Port),
     State = #ebomber_state{
       game_types = get_game_types(),
-      listener=Listener
+      listener = Listener
      },
     {ok, State}.
 

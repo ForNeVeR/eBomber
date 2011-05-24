@@ -40,7 +40,9 @@ cancel(Game) ->
 init(Server, Type) ->
     wait_loop(Server, Type, []).
 
-wait_loop(Server, Type = #game_type{max_players_count = MaxPlayers}, Players) ->
+wait_loop(Server, Type = #game_type{
+                    max_players_count = MaxPlayers
+                   }, Players) ->
     receive
         {add_player, Player} ->
             NewPlayers = [Player | Players],

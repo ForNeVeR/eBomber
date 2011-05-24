@@ -29,7 +29,7 @@ new(SizeX, SizeY) ->
 
 % Creates a new map with specified size and objects.
 new(SizeX, SizeY, Objects) ->
-    #map {
+    #map{
      size_x = SizeX,
      size_y = SizeY,
      objects = Objects
