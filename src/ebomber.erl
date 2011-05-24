@@ -195,7 +195,7 @@ process_message(State = #ebomber_state{
 make_unique_id() ->
     list_to_binary(io_lib:format("~p", [make_ref()])). % TODO: Something better?
 
-game_info(GameType = #game_type{}) ->
+game_info(GameType) ->
     message:create([
       message:create_key_value(type_id, GameType#game_type.type_id),
       message:create_key_value(turn_time, GameType#game_type.turn_time),
