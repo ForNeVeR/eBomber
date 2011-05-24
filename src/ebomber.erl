@@ -228,6 +228,18 @@ get_game_types() ->
         map_height = 5
        }].
 
+find_game_type(TypeID, TypeList) ->
+    case lists:filter(fun (Type = #game_type{
+                             type_id = CurrentTypeID
+                            }) ->
+                              CurrentTypeID =:= TypeID
+                      end, TypeList) of
+        [] ->
+            {error, not_found};
+        [Game, _Games] ->
+            {ok, Game}
+    end.
+
 find_client({PID, SessionID}, ClientList) ->
     case lists:filter(fun (Client = #client{
                              pid = CurrentPID,
@@ -278,6 +290,29 @@ find_free_game(TypeID, GameList) ->
         [Game, _Games] ->
             {ok, Game}
     end.
+
+find_running_game(GameID, GameList) ->
+    case lists:filter(fun (Game = #game{
+                             game_id = CurrentGameID,
+                             state = CurrentState
+                            }) ->
+                              (CurrentState =:= running)
+                                  and (CurrentGameID =:= GameID)
+                      end, GameList) of
+        [] ->
+            {error, not_found};
+        [Game, _Games] ->
+            {ok, Game}
+    end.
+
+replace_game(From, To, List) ->
+    [To | lists:filter(fun (Game) ->
+                               Game =/= From
+                       end, List)].
+
+new_game(TypeID, GameTypes) ->
+    Type = find_game_type(TypeID, GameTypes),
+    game:start(self(), Type).
 
 stop_listener(Listener) ->
     Listener ! stop,
