@@ -47,7 +47,7 @@
           game_id = <<"">>,
           players = [],
           observers = [],
-          state = waiting
+          status = waiting
         }).
 
 %% === Public functions ===
@@ -152,6 +152,7 @@ process_message(State = #ebomber_state{
                     NewState = State#ebomber_state{clients = NewClients},
                     {Response, NewState};
                 <<"observer">> ->
+                    Name = EMail, % TODO: Implement another naming mechanism?
                     Observer = #client{
                       type = observer,
                       pid = From,
@@ -159,18 +160,25 @@ process_message(State = #ebomber_state{
                      },
                     NewClients = [Observer | State#ebomber_state.clients],
 
-                    %% TODO: Response with information about available game
-                    %% types AND currently running games.
-                    GamesInfo = lists:map(fun game_info/1, get_game_types()),
+                    TypesInfo = lists:map(fun game_type_info/1,
+                                          get_game_types()),
+                    GamesInfo = lists:map(fun game_info/1,
+                                          lists:filter(
+                                            fun (Game = #game
+                                                 {
+                                                   status = GameStatus
+                                                 }) ->
+                                                    GameStatus =:= running
+                                            end, GameList)),
                     Response = message:create(
                                  [
                                   message:create_key_value(status, <<"ok">>),
                                   message:create_key_value(session_id,
                                                            SessionID),
-                                  message:create_key_value(your_name, EMail),
-                                  %% TODO: Implement another naming mechanism?
+                                  message:create_key_value(your_name, Name),
                                   message:create_key_value(game_types,
-                                                           GamesInfo)
+                                                           TypesInfo),
+                                  message:create_key_value(games, GamesInfo)
                                  ]),
                     NewState = State#ebomber_state{clients = NewClients},
                     {Response, NewState}
@@ -195,25 +203,26 @@ process_message(State = #ebomber_state{
 make_unique_id() ->
     list_to_binary(io_lib:format("~p", [make_ref()])). % TODO: Something better?
 
-game_info(GameType) ->
-    message:create([
-      message:create_key_value(type_id, GameType#game_type.type_id),
-      message:create_key_value(turn_time, GameType#game_type.turn_time),
-      message:create_key_value(init_bombs_count,
-                               GameType#game_type.init_bombs_count),
-      message:create_key_value(max_bombs_count,
-                               GameType#game_type.max_bombs_count),
-      message:create_key_value(init_bomb_radius,
-                               GameType#game_type.init_bomb_radius),
-      message:create_key_value(bomb_delay, GameType#game_type.bomb_delay),
-      message:create_key_value(min_players_count,
-                               GameType#game_type.min_players_count),
-      message:create_key_value(max_players_count,
-                               GameType#game_type.max_players_count),
-      message:create_key_value(map_name, GameType#game_type.map_name),
-      message:create_key_value(map_width, GameType#game_type.map_width),
-      message:create_key_value(map_height, GameType#game_type.map_height)
-    ]).
+game_type_info(GameType) ->
+    message:create(
+      [
+       message:create_key_value(type_id, GameType#game_type.type_id),
+       message:create_key_value(turn_time, GameType#game_type.turn_time),
+       message:create_key_value(init_bombs_count,
+                                GameType#game_type.init_bombs_count),
+       message:create_key_value(max_bombs_count,
+                                GameType#game_type.max_bombs_count),
+       message:create_key_value(init_bomb_radius,
+                                GameType#game_type.init_bomb_radius),
+       message:create_key_value(bomb_delay, GameType#game_type.bomb_delay),
+       message:create_key_value(min_players_count,
+                                GameType#game_type.min_players_count),
+       message:create_key_value(max_players_count,
+                                GameType#game_type.max_players_count),
+       message:create_key_value(map_name, GameType#game_type.map_name),
+       message:create_key_value(map_width, GameType#game_type.map_width),
+       message:create_key_value(map_height, GameType#game_type.map_height)
+      ]).
 
 get_game_types() ->
     %% TODO: Query config for available game types.
@@ -242,6 +251,25 @@ find_game_type(TypeID, TypeList) ->
         [Game, _Games] ->
             {ok, Game}
     end.
+
+game_info(Game = #game
+          {
+            type_id = TypeID,
+            game_id = GameID,
+            players = Players
+          }) ->
+    message:create(
+      [
+       message:create_key_value(type_id, TypeID),
+       message:create_key_value(game_id, GameID),
+       message:create_key_value(players, lists:map(
+                                           fun (Player = #client
+                                                {
+                                                  name = Name
+                                                }) ->
+                                                   Name
+                                           end, Players))
+       ]).
 
 find_client({PID, SessionID}, ClientList) ->
     case lists:filter(fun (Client = #client{
@@ -283,9 +311,9 @@ add_observer_to_game(Observer, GameID, GameList) ->
 find_free_game(TypeID, GameList) ->
     case lists:filter(fun (Game = #game{
                              type_id = CurrentTypeID,
-                             state = CurrentState
+                             status = CurrentStatus
                             }) ->
-                              (CurrentState =:= waiting)
+                              (CurrentStatus =:= waiting)
                                   and (CurrentTypeID =:= TypeID)
                       end, GameList) of
         [] ->
@@ -297,9 +325,9 @@ find_free_game(TypeID, GameList) ->
 find_running_game(GameID, GameList) ->
     case lists:filter(fun (Game = #game{
                              game_id = CurrentGameID,
-                             state = CurrentState
+                             status = CurrentStatus
                             }) ->
-                              (CurrentState =:= running)
+                              (CurrentStatus =:= running)
                                   and (CurrentGameID =:= GameID)
                       end, GameList) of
         [] ->
