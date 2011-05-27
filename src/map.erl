@@ -19,15 +19,15 @@
 
 %% === Public functions ===
 
-% Creates a new standard map.
+%% Creates a new standard map.
 new() ->
     new(5, 5).
 
-% Creates a new map with specified size and default object placement.
+%% Creates a new map with specified size and default object placement.
 new(SizeX, SizeY) ->
     new(SizeX, SizeY, default_objects(SizeX, SizeY)).
 
-% Creates a new map with specified size and objects.
+%% Creates a new map with specified size and objects.
 new(SizeX, SizeY, Objects) ->
     #map{
      size_x = SizeX,
@@ -37,7 +37,7 @@ new(SizeX, SizeY, Objects) ->
 
 %% === Private functions ===
 
-% Forms default object placement.
-% TODO: Implement it.
+%% Forms default object placement.
+%% TODO: Implement it.
 default_objects(SizeX, SizeY) ->
     [].

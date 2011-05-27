@@ -96,12 +96,15 @@ handle_info(Info, State) ->
     io:format("eBomber info message: ~p~n", [Info]),
     {noreply, State}.
 
-terminate(normal, State=#ebomber_state{}) ->
+terminate(normal, _State = #ebomber_state{
+                    listener = Listener,
+                    games = Games
+                   }) ->
     io:format("ebomber:terminate~n"),
     io:format("Stopping listener...~n"),
-    ok = stop_listener(State#ebomber_state.listener),
+    ok = stop_listener(Listener),
     io:format("Cancelling games...~n"),
-    ok = cancel_games(State#ebomber_state.games),
+    ok = cancel_games(Games),
     io:format("ebomber terminated~n"),
     ok.
 
@@ -162,7 +165,9 @@ process_message(State = #ebomber_state{
                                   message:create_key_value(game_types,
                                                            GamesInfo)
                                  ]),
-                    NewState = State#ebomber_state{clients = NewClients},
+                    NewState = State#ebomber_state{
+                                 clients = NewClients
+                                },
                     {reply, Response, NewState};
                 <<"observer">> ->
                     Name = EMail, % TODO: Implement another naming mechanism?
@@ -192,7 +197,9 @@ process_message(State = #ebomber_state{
                                                            TypesInfo),
                                   message:create_key_value(games, GamesInfo)
                                  ]),
-                    NewState = State#ebomber_state{clients = NewClients},
+                    NewState = State#ebomber_state{
+                                 clients = NewClients
+                                },
                     {reply, Response, NewState}
             end;
         <<"join">> ->
@@ -201,37 +208,48 @@ process_message(State = #ebomber_state{
             {ok, Player} = find_client({From, SessionID}, Clients),
             NewGameList = add_player_to_game(Player, TypeID, GameList,
                                              GameTypes),
-            {noreply, State#ebomber_state{games = NewGameList}};
+            {noreply, State#ebomber_state{
+                        games = NewGameList
+                       }};
         <<"watch">> ->
             SessionID = message:get_value(session_id, Message),
             GameID = message:get_value(game_id, Message),
             {ok, Observer} = find_client({From, SessionID}, Clients),
             NewGameList = add_observer_to_game(Observer, GameID, GameList),
-            {noreply, State#ebomber_state{games = NewGameList}}
+            {noreply, State#ebomber_state{
+                        games = NewGameList
+                       }}
     end.
 
 make_unique_id() ->
     list_to_binary(io_lib:format("~p", [make_ref()])). % TODO: Something better?
 
-game_type_info(GameType) ->
+game_type_info(GameType = #game_type{
+                 type_id = TypeID,
+                 turn_time = TurnTime,
+                 init_bombs_count = InitBombsCount,
+                 max_bombs_count = MaxBombsCount,
+                 init_bomb_radius = InitBombRadius,
+                 bomb_delay = BombDelay,
+                 min_players_count = MinPlayersCount,
+                 max_players_count = MaxPlayersCount,
+                 map_name = MapName,
+                 map_width = MapWidth,
+                 map_height = MapHeight
+                }) ->
     message:create(
       [
-       message:create_key_value(type_id, GameType#game_type.type_id),
-       message:create_key_value(turn_time, GameType#game_type.turn_time),
-       message:create_key_value(init_bombs_count,
-                                GameType#game_type.init_bombs_count),
-       message:create_key_value(max_bombs_count,
-                                GameType#game_type.max_bombs_count),
-       message:create_key_value(init_bomb_radius,
-                                GameType#game_type.init_bomb_radius),
-       message:create_key_value(bomb_delay, GameType#game_type.bomb_delay),
-       message:create_key_value(min_players_count,
-                                GameType#game_type.min_players_count),
-       message:create_key_value(max_players_count,
-                                GameType#game_type.max_players_count),
-       message:create_key_value(map_name, GameType#game_type.map_name),
-       message:create_key_value(map_width, GameType#game_type.map_width),
-       message:create_key_value(map_height, GameType#game_type.map_height)
+       message:create_key_value(type_id, TypeID),
+       message:create_key_value(turn_time, TurnTime),
+       message:create_key_value(init_bombs_count, InitBombsCount),
+       message:create_key_value(max_bombs_count, MaxBombsCount),
+       message:create_key_value(init_bomb_radius, InitBombRadius),
+       message:create_key_value(bomb_delay, BombDelay),
+       message:create_key_value(min_players_count, MinPlayersCount),
+       message:create_key_value(max_players_count, MaxPlayersCount),
+       message:create_key_value(map_name, MapName),
+       message:create_key_value(map_width, MapWidth),
+       message:create_key_value(map_height, MapHeight)
       ]).
 
 get_game_types() ->

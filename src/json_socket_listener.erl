@@ -52,7 +52,7 @@ loop(Server, ServerSocket, InactiveConnector, Connectors) ->
             case lists:all(fun(Elem) -> Elem =:= ok end,
                            [InactiveClosed | Statuses]) of
                 true ->
-                     Server ! {self(), stopped};
+                    Server ! {self(), stopped};
                 false ->
                     Server ! {self(), stopped_with_error}
             end;

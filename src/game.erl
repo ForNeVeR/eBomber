@@ -63,8 +63,7 @@ wait_loop(Server, Type, GameID) ->
 
 
 %% TODO: Finish this function.
-game_loop(State = #game_state
-         {
+game_loop(State = #game_state{
            players = Players
          }) ->
     io:format("game:game_loop, State = ~p~n", [State]).
