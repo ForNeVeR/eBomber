@@ -83,7 +83,7 @@ init([Port]) ->
 handle_call(stop, _From, State) ->
     io:format("ebomber received stop request~n"),
     {stop, normal, State};
-handle_call(Request, From, State) ->
+handle_call(Request, _From, State) ->
     io:format("ebomber call with request ~p~n", [Request]),
     {noreply, State}.
 
@@ -111,9 +111,21 @@ code_change(_OldVsn, State, _Extra) ->
 %% === Private functions ===
 
 handle_message(State, {received, Client, Message}) ->
-    {Response, NewState} = process_message(State, Client, Message),
-    Client ! {reply, Response},
-    NewState.
+    case process_message(State, Client, Message) of
+        {reply, Response, NewState} ->
+            Client ! {reply, Response},
+            NewState;
+        {noreply, NewState} ->
+            NewState
+    end;
+handle_message(State = #ebomber_state{
+                 game_types = GameTypes,
+                 clients = Clients,
+                 games = Games
+                }, {game_started, GameID}) ->
+    io:format("Game ~p reported succesful start~n", [GameID]),
+    %% TODO: Reply game_started packet to every interested client.
+    {noreply, State}.
 
 process_message(State = #ebomber_state{
                   game_types = GameTypes,
@@ -139,7 +151,8 @@ process_message(State = #ebomber_state{
                       name = Name
                      },
                     NewClients = [Player | Clients],
-                    GamesInfo = lists:map(fun game_info/1, get_game_types()),
+                    GamesInfo = lists:map(fun game_type_info/1,
+                                          get_game_types()),
                     Response = message:create(
                                  [
                                   message:create_key_value(status, <<"ok">>),
@@ -150,7 +163,7 @@ process_message(State = #ebomber_state{
                                                            GamesInfo)
                                  ]),
                     NewState = State#ebomber_state{clients = NewClients},
-                    {Response, NewState};
+                    {reply, Response, NewState};
                 <<"observer">> ->
                     Name = EMail, % TODO: Implement another naming mechanism?
                     Observer = #client{
@@ -164,10 +177,9 @@ process_message(State = #ebomber_state{
                                           get_game_types()),
                     GamesInfo = lists:map(fun game_info/1,
                                           lists:filter(
-                                            fun (Game = #game
-                                                 {
+                                            fun (_Game = #game{
                                                    status = GameStatus
-                                                 }) ->
+                                                  }) ->
                                                     GameStatus =:= running
                                             end, GameList)),
                     Response = message:create(
@@ -181,7 +193,7 @@ process_message(State = #ebomber_state{
                                   message:create_key_value(games, GamesInfo)
                                  ]),
                     NewState = State#ebomber_state{clients = NewClients},
-                    {Response, NewState}
+                    {reply, Response, NewState}
             end;
         <<"join">> ->
             SessionID = message:get_value(session_id, Message),
@@ -189,15 +201,13 @@ process_message(State = #ebomber_state{
             {ok, Player} = find_client({From, SessionID}, Clients),
             NewGameList = add_player_to_game(Player, TypeID, GameList,
                                              GameTypes),
-            {undefined, State#ebomber_state{games = NewGameList}};
-                                                % TODO: What must be responsed?
+            {noreply, State#ebomber_state{games = NewGameList}};
         <<"watch">> ->
             SessionID = message:get_value(session_id, Message),
             GameID = message:get_value(game_id, Message),
             {ok, Observer} = find_client({From, SessionID}, Clients),
             NewGameList = add_observer_to_game(Observer, GameID, GameList),
-            {undefined, State#ebomber_state{games = NewGameList}}
-                                                % TODO: What must be responsed?
+            {noreply, State#ebomber_state{games = NewGameList}}
     end.
 
 make_unique_id() ->
@@ -240,39 +250,37 @@ get_game_types() ->
         map_height = 5
        }].
 
-find_game_type(TypeID, TypeList) ->
-    case lists:filter(fun (Type = #game_type{
+find_game_type(TypeID, GameTypeList) ->
+    case lists:filter(fun (_Type = #game_type{
                              type_id = CurrentTypeID
                             }) ->
                               CurrentTypeID =:= TypeID
-                      end, TypeList) of
+                      end, GameTypeList) of
         [] ->
             {error, not_found};
-        [Game, _Games] ->
+        [Game | _Games] ->
             {ok, Game}
     end.
 
-game_info(Game = #game
-          {
+game_info(_Game = #game{
             type_id = TypeID,
             game_id = GameID,
             players = Players
-          }) ->
+           }) ->
     message:create(
       [
        message:create_key_value(type_id, TypeID),
        message:create_key_value(game_id, GameID),
        message:create_key_value(players, lists:map(
-                                           fun (Player = #client
-                                                {
+                                           fun (_Player = #client{
                                                   name = Name
-                                                }) ->
+                                                 }) ->
                                                    Name
                                            end, Players))
-       ]).
+      ]).
 
 find_client({PID, SessionID}, ClientList) ->
-    case lists:filter(fun (Client = #client{
+    case lists:filter(fun (_Client = #client{
                              pid = CurrentPID,
                              session_id = CurrentSID
                             }) ->
@@ -287,16 +295,30 @@ find_client({PID, SessionID}, ClientList) ->
             {error, multiple_found}
     end.
 
-add_player_to_game(Player, TypeID, GameList, GameTypes) ->
+add_player_to_game(Player, TypeID, GameList, GameTypesList) ->
     case find_free_game(TypeID, GameList) of
-        {ok, Game} ->
-            %% TODO: Run game if needed amount of players available.
-            OldPlayers = Game#game.players,
+        {ok, Game = #game{
+               pid = GamePID,
+               players = OldPlayers
+              }} ->
+            Players = [Player | OldPlayers],
+            PlayersCount = length(Players),
+            {ok, _GameType = #game_type{
+                   min_players_count = MinPlayersCount
+                  }} = find_game_type(TypeID, GameTypesList),
+            if
+                PlayersCount =:= MinPlayersCount ->
+                    Status = running,
+                    game:run(GamePID, Players);
+                PlayersCount < MinPlayersCount ->
+                    Status = waiting
+            end,
             replace_game(Game, Game#game{
-                                 players = [Player | OldPlayers]
+                                 status = Status,
+                                 players = Players
                                 }, GameList);
         {error, not_found} ->
-            [new_game(TypeID, GameTypes) | GameList]
+            [new_game(TypeID, GameTypesList) | GameList]
     end.
 
 add_observer_to_game(Observer, GameID, GameList) ->
@@ -309,7 +331,7 @@ add_observer_to_game(Observer, GameID, GameList) ->
     end.
 
 find_free_game(TypeID, GameList) ->
-    case lists:filter(fun (Game = #game{
+    case lists:filter(fun (_Game = #game{
                              type_id = CurrentTypeID,
                              status = CurrentStatus
                             }) ->
@@ -323,7 +345,7 @@ find_free_game(TypeID, GameList) ->
     end.
 
 find_running_game(GameID, GameList) ->
-    case lists:filter(fun (Game = #game{
+    case lists:filter(fun (_Game = #game{
                              game_id = CurrentGameID,
                              status = CurrentStatus
                             }) ->
@@ -343,12 +365,13 @@ replace_game(From, To, List) ->
 
 new_game(TypeID, GameTypes) ->
     Type = find_game_type(TypeID, GameTypes),
-    PID = game:start(self(), Type),
+    GameID = make_unique_id(),
+    PID = game:start(self(), GameID, Type),
     #game{
-      pid = PID,
-      type_id = TypeID,
-      game_id = make_unique_id()
-     }.
+           pid = PID,
+           type_id = TypeID,
+           game_id = GameID
+         }.
 
 stop_listener(Listener) ->
     Listener ! stop,

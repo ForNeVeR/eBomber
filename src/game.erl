@@ -13,18 +13,24 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(game).
--export([start/2, add_player/2, cancel/1]).
--export([init/2]).
+-export([start/3, run/2, cancel/1]).
+-export([init/3]).
 
 -include("game_type.hrl").
 
+-record(game_state,
+        {
+          game_id = <<"">>,
+          players = []
+        }).
+
 %% === Public functions ===
 
-start(Server, Type) ->
-    spawn_link(?MODULE, init, [Server, Type]).
+start(Server, Type, GameID) ->
+    spawn_link(?MODULE, init, [Server, Type, GameID]).
 
-add_player(Game, Player) ->
-    Game ! {add_player, Player}.
+run(Game, Players) ->
+    Game ! {start, Players}.
 
 cancel(Game) ->
     Game ! cancel,
@@ -37,31 +43,28 @@ cancel(Game) ->
 
 %% === Private functions ===
 
-init(Server, Type) ->
-    wait_loop(Server, Type, []).
+init(Server, Type, GameID) ->
+    wait_loop(Server, Type, GameID).
 
-wait_loop(Server, Type = #game_type{
-                    max_players_count = MaxPlayers
-                   }, Players) ->
+wait_loop(Server, Type, GameID) ->
     receive
-        {add_player, Player} ->
-            NewPlayers = [Player | Players],
-            ebomber:player_accepted(Server , Player),
-            if
-                length(NewPlayers) =:= MaxPlayers ->
-                    ebomber:game_started(Server),
-                    game_loop({}); % TODO: Fill some valid state here.
-                length(NewPlayers) < MaxPlayers ->
-                    wait_loop(Server, Type, NewPlayers)
-            end;
+        {start, Players} ->
+            ebomber:game_started(GameID),
+            game_loop(#game_state{
+                         game_id = GameID,
+                         players = Players
+                        });
         cancel ->
             Server ! {cancelled, self()};
         Unknown ->
             io:format("game recieved unknown message: ~p~n", [Unknown]),
-            wait_loop(Server, Type, Players)
+            wait_loop(Server, Type, GameID)
     end.
 
 
 %% TODO: Finish this function.
-game_loop(State) ->
+game_loop(State = #game_state
+         {
+           players = Players
+         }) ->
     io:format("game:game_loop, State = ~p~n", [State]).
