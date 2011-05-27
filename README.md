@@ -51,7 +51,7 @@ Then start ebomber server:
 
     1> ebomber_app:start().
 
-Default listening port is 6666. You also may use define port in the ebomber.app
+Default listening port is 6666. You also may define port in the ebomber.app
 file.
 
 For now server only stays in memory and logs all incoming messages. Stay tuned.
@@ -96,7 +96,7 @@ may be represented as Erlang term
 
 Strings are always saved as binaries; never as lists (see previous example).
 
-Lists stored as lists, numbers as numbers. Nothing to add here.
+Lists are stored as lists, numbers as numbers. Nothing to add here.
 
 ### ebomber_app module
 
@@ -110,6 +110,22 @@ Main program module. It processes data from clients and redirects it to games.
 At start it spawns json_socket_listener (and any other types of listeners, if
 any other of them will exist). At need it spawns game processes.
 
+### game module
+
+game process spawns timer process at start, and may spawn bomb processes when
+the game is running.
+
+### map module
+
+Now this module only contains few helper functions for dealing with bomberbot
+maps.
+
+### message module
+
+This module designed for managing internal message data format. All other
+modules must use only functions exported from this module for dealing with
+messages.
+
 ### json_socket_listener module
 
 json_socket_listener is process for listening sockets and spawning
@@ -122,12 +138,7 @@ it sends processed data to main server.
 
 Any connector module must have generic way to send some response back to client.
 
-### game module
+### json_converter module
 
-game process spawns timer process at start, and may spawn bomb processes when
-the game is running.
-
-### map module
-
-Now this module only contains few helper functions for dealing with bomberbot
-maps.
+This module converts messages between internal Erlang format and external JSON
+format.
