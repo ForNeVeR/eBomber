@@ -123,6 +123,7 @@ handle_message(State = #ebomber_state{
                  games = Games
                 }, {game_started, GameID, GameMap}) ->
     io:format("Game ~p reported succesful start~n", [GameID]),
+    io:format("Current game map: ~p~n", [GameMap]),
     %% TODO: Reply game_started packet to every interested client.
     {noreply, State}.
 
@@ -309,17 +310,22 @@ find_client({PID, SessionID}, ClientList) ->
             {error, multiple_found}
     end.
 
-add_player_to_game(Player, TypeID, GameList, GameTypesList) ->
+add_player_to_game(_Client = #client{
+                     name = PlayerName
+                    }, TypeID, GameList, GameTypesList) ->
     case find_free_game(TypeID, GameList) of
         {ok, Game = #game{
                pid = GamePID,
                players = OldPlayers
               }} ->
-            Players = [Player | OldPlayers],
+            Players = [PlayerName | OldPlayers],
             PlayersCount = length(Players),
             {ok, _GameType = #game_type{
                    min_players_count = MinPlayersCount
                   }} = find_game_type(TypeID, GameTypesList),
+            io:format("Adding player ~p to game ~p~n", [PlayerName, Game]),
+            io:format("Game now will have ~p players; start at ~p~n",
+                      [PlayersCount, MinPlayersCount]),
             if
                 PlayersCount =:= MinPlayersCount ->
                     Status = running,
@@ -332,7 +338,7 @@ add_player_to_game(Player, TypeID, GameList, GameTypesList) ->
                                  players = Players
                                 }, GameList);
         {error, not_found} ->
-            [new_game(TypeID, GameTypesList) | GameList]
+            [new_game(TypeID, GameTypesList, PlayerName) | GameList]
     end.
 
 add_observer_to_game(Observer, GameID, GameList) ->
@@ -354,7 +360,7 @@ find_free_game(TypeID, GameList) ->
                       end, GameList) of
         [] ->
             {error, not_found};
-        [Game, _Games] ->
+        [Game | _Games] ->
             {ok, Game}
     end.
 
@@ -377,14 +383,16 @@ replace_game(From, To, List) ->
                                Game =/= From
                        end, List)].
 
-new_game(TypeID, GameTypes) ->
-    Type = find_game_type(TypeID, GameTypes),
+new_game(TypeID, GameTypes, Player) ->
+    io:format("Creating game of type ~p~n", [TypeID]),
+    {ok, Type} = find_game_type(TypeID, GameTypes),
     GameID = make_unique_id(),
-    PID = game:start(self(), GameID, Type),
+    PID = game:start(self(), Type, GameID),
     #game{
            pid = PID,
            type_id = TypeID,
-           game_id = GameID
+           game_id = GameID,
+           players = [Player]
          }.
 
 stop_listener(Listener) ->

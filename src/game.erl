@@ -55,7 +55,7 @@ wait_loop(Server, Type = #game_type{
     receive
         {start, Players} ->
             Map = map:create(MapName, MapWidth, MapHeight, Players),
-            ebomber:game_started(Server, GameID),
+            ebomber:game_started(Server, GameID, Map),
             game_loop(#game_state{
                          game_id = GameID,
                          map = Map
