@@ -13,8 +13,7 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 -module(ebomber).
--export([start_link/1, stop/1, received_data/2, player_accepted/2,
-         game_started/1]).
+-export([start_link/1, stop/1, received_data/2, game_started/3]).
 
 -behavior(gen_server).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -63,11 +62,8 @@ stop(PID) ->
 received_data(Server, Data) ->
     gen_server:cast(Server, {received, self(), Data}).
 
-player_accepted(Server, Player) ->
-    gen_server:cast(Server, {player_accepted, self(), Player}).
-
-game_started(Server) ->
-    gen_server:cast(Server, {game_started, self()}).
+game_started(Server, GameID, GameMap) ->
+    gen_server:cast(Server, {game_started, GameID, GameMap}).
 
 %% === gen_server behavior ===
 
@@ -125,7 +121,7 @@ handle_message(State = #ebomber_state{
                  game_types = GameTypes,
                  clients = Clients,
                  games = Games
-                }, {game_started, GameID}) ->
+                }, {game_started, GameID, GameMap}) ->
     io:format("Game ~p reported succesful start~n", [GameID]),
     %% TODO: Reply game_started packet to every interested client.
     {noreply, State}.

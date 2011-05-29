@@ -17,11 +17,12 @@
 -export([init/3]).
 
 -include("game_type.hrl").
+-include("map.hrl").
 
 -record(game_state,
         {
           game_id = <<"">>,
-          players = []
+          map = #map{}
         }).
 
 %% === Public functions ===
@@ -46,13 +47,18 @@ cancel(Game) ->
 init(Server, Type, GameID) ->
     wait_loop(Server, Type, GameID).
 
-wait_loop(Server, Type, GameID) ->
+wait_loop(Server, Type = #game_type{
+                    map_name = MapName,
+                    map_width = MapWidth,
+                    map_height = MapHeight
+                   }, GameID) ->
     receive
         {start, Players} ->
-            ebomber:game_started(GameID),
+            Map = map:create(MapName, MapWidth, MapHeight, Players),
+            ebomber:game_started(Server, GameID),
             game_loop(#game_state{
                          game_id = GameID,
-                         players = Players
+                         map = Map
                         });
         cancel ->
             Server ! {cancelled, self()};
@@ -64,6 +70,7 @@ wait_loop(Server, Type, GameID) ->
 
 %% TODO: Finish this function.
 game_loop(State = #game_state{
-           players = Players
+            game_id = GameID,
+            map = Map
          }) ->
     io:format("game:game_loop, State = ~p~n", [State]).

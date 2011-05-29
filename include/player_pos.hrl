@@ -13,12 +13,9 @@
 %% You should have received a copy of the GNU General Public License along with
 %% eBomber.  If not, see <http://www.gnu.org/licenses/>.
 
-%% Record for game map.
--record(map,
+%% Record for storing ingame player position:
+-record(player_pos,
         {
-          size_x = 0,
-          size_y = 0,
-          metal = [],
-          stone = [],
-          players = []
+          name = <<"">>,
+          pos = [0, 0]
         }).
