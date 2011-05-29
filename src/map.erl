@@ -20,7 +20,7 @@
 
 %% === Public functions ===
 
-%% Creates a new standard map.
+%% Creates a standard map.
 create(<<"standard">>, Width, Height, Players) ->
     Map = #map{
       size_x = Width,
