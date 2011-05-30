@@ -39,12 +39,12 @@ init(Listener, ServerSocket, Server) ->
     case gen_tcp:accept(ServerSocket) of
         {ok, Socket} ->
             Listener ! {self(), connected},
-            loop(Socket, Server, []);
+            loop(Listener, Socket, Server, []);
         {error, closed} ->
             Listener ! {self(), closed}
     end.
 
-loop(Socket, Server, PendingData) ->
+loop(Listener, Socket, Server, PendingData) ->
     receive
         {tcp_closed, Socket} ->
             Server ! {self(), client_disconnected};
@@ -60,21 +60,24 @@ loop(Socket, Server, PendingData) ->
                     Packet = lists:takewhile(fun(Byte) -> Byte =/= 0 end,
                                               FullData),
                     ok = parse_packet(Server, Packet),
-                    loop(Socket, Server, lists:nthtail(length(Packet) + 1,
-                                                       FullData));
+                    loop(Listener, Socket, Server,
+                         lists:nthtail(length(Packet) + 1, FullData));
                 false ->
-                    loop(Socket, Server, FullData)
+                    loop(Listener, Socket, Server, FullData)
             end;
         {reply, Message} ->
             io:format("Sending message to client: ~p~n", [Message]),
             gen_tcp:send(Socket,
                          lists:append(json_converter:message_to_json(Message),
                                       [0])),
-            loop(Socket, Server, PendingData);
+            loop(Listener, Socket, Server, PendingData);
+        stop ->
+            Listener ! stopped,
+            ok;
         Unknown ->
             io:format("json_connector received unknown message: ~p~n",
                       [Unknown]),
-            loop(Socket, Server, PendingData)
+            loop(Listener, Socket, Server, PendingData)
     end.
 
 parse_packet(Server, Packet) ->

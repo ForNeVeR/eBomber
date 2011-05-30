@@ -78,7 +78,7 @@ init([Port]) ->
 
 handle_call(stop, _From, State) ->
     io:format("ebomber received stop request~n"),
-    {stop, normal, State};
+    {stop, normal, ok, State};
 handle_call(Request, _From, State) ->
     io:format("ebomber call with request ~p~n", [Request]),
     {noreply, State}.
@@ -92,10 +92,10 @@ handle_info(Info, State) ->
     io:format("eBomber info message: ~p~n", [Info]),
     {noreply, State}.
 
-terminate(normal, _State = #ebomber_state{
-                    listener = Listener,
-                    games = Games
-                   }) ->
+terminate(_Reason, _State = #ebomber_state{
+                     listener = Listener,
+                     games = Games
+                    }) ->
     io:format("ebomber:terminate~n"),
     io:format("Stopping listener...~n"),
     ok = stop_listener(Listener),

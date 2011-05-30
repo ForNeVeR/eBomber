@@ -38,7 +38,7 @@ start_phase(_, _) ->
     {error, not_implemented}.
 
 prep_stop([PID]) ->
-    ebomber:stop(PID),
+    ok = ebomber:stop(PID),
     State = [],
     State.
 

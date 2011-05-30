@@ -40,7 +40,9 @@ loop(Server, ServerSocket, InactiveConnector, Connectors) ->
             {ok, NewConnector, Ref} = spawn_new_connector(ServerSocket, Server),
             loop(Server, ServerSocket, NewConnector, [Connector | Connectors]);
         stop ->
+            io:format("Stopping connectors...~n"),
             Statuses = lists:map(fun json_connector:stop/1, Connectors),
+            io:format("Stopping last connector...~n"),
             %% Stop inactive connector:
             gen_tcp:close(ServerSocket),
             receive
