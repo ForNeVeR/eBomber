@@ -126,6 +126,10 @@ This module designed for managing internal message data format. All other
 modules must use only functions exported from this module for dealing with
 messages.
 
+### connector module
+
+This module contains generic functions for sending data to various connectors.
+
 ### json_socket_listener module
 
 json_socket_listener is process for listening sockets and spawning

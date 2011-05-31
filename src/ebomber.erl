@@ -20,6 +20,7 @@
          code_change/3]).
 
 -include("game_type.hrl").
+-include("map.hrl").
 
 %% === Records ===
 
@@ -124,7 +125,11 @@ handle_message(State = #ebomber_state{
                 }, {game_started, GameID, GameMap}) ->
     io:format("Game ~p reported succesful start~n", [GameID]),
     io:format("Current game map: ~p~n", [GameMap]),
-    %% TODO: Reply game_started packet to every interested client.
+    
+    Game = find_running_game(GameID, Games),
+    ok = send_response(Game, Clients,
+                       game_started_response(GameMap, Game, GameTypes)),
+
     {noreply, State}.
 
 process_message(State = #ebomber_state{
@@ -154,8 +159,7 @@ process_message(State = #ebomber_state{
                     GamesInfo = lists:map(fun game_type_info/1,
                                           get_game_types()),
                     Response = message:create(
-                                 [
-                                  message:create_key_value(status, <<"ok">>),
+                                 [message:create_key_value(status, <<"ok">>),
                                   message:create_key_value(session_id,
                                                            SessionID),
                                   message:create_key_value(your_name, Name),
@@ -185,8 +189,7 @@ process_message(State = #ebomber_state{
                                                     GameStatus =:= running
                                             end, GameList)),
                     Response = message:create(
-                                 [
-                                  message:create_key_value(status, <<"ok">>),
+                                 [message:create_key_value(status, <<"ok">>),
                                   message:create_key_value(session_id,
                                                            SessionID),
                                   message:create_key_value(your_name, Name),
@@ -221,7 +224,7 @@ process_message(State = #ebomber_state{
 make_unique_id() ->
     list_to_binary(io_lib:format("~p", [make_ref()])). % TODO: Something better?
 
-game_type_info(GameType = #game_type{
+game_type_info(_GameType = #game_type{
                  type_id = TypeID,
                  turn_time = TurnTime,
                  init_bombs_count = InitBombsCount,
@@ -235,8 +238,7 @@ game_type_info(GameType = #game_type{
                  map_height = MapHeight
                 }) ->
     message:create(
-      [
-       message:create_key_value(type_id, TypeID),
+      [message:create_key_value(type_id, TypeID),
        message:create_key_value(turn_time, TurnTime),
        message:create_key_value(init_bombs_count, InitBombsCount),
        message:create_key_value(max_bombs_count, MaxBombsCount),
@@ -283,8 +285,7 @@ game_info(_Game = #game{
             players = Players
            }) ->
     message:create(
-      [
-       message:create_key_value(type_id, TypeID),
+      [message:create_key_value(type_id, TypeID),
        message:create_key_value(game_id, GameID),
        message:create_key_value(players, lists:map(
                                            fun (_Player = #client{
@@ -409,3 +410,43 @@ cancel_games([]) ->
 cancel_games([Game, Other]) ->
     ok = game:cancel(Game),
     cancel_games(Other).
+
+game_started_response(_Map = #map{
+                        size_x = MapWidth,
+                        size_y = MapHeight,
+                        metal = Metal,
+                        stone = Stone,
+                        players = Players
+                       },
+                      _Game = #game{
+                        game_id = GameID,
+                        type_id = TypeID
+                       }, GameTypes) ->
+    {ok, _GameType = #game_type{
+      turn_time = TurnTime
+     }} = find_game_type(TypeID, GameTypes),
+    message:create(
+      [message:create_key_value(status, <<"game_started">>),
+       message:create_key_value(game_id, GameID),
+       message:create_key_value(turn_time, TurnTime),
+       message:create_key_value(map_width, MapWidth),
+       message:create_key_value(map_height, MapHeight),
+       message:create_key_value(metal, Metal),
+       message:create_key_value(stone, Stone),
+       message:create_key_value(players, Players)
+      ]).
+    
+send_response(_Game = #game{
+                players = Players,
+                observers = Observers
+               }, Clients, Response) ->
+    lists:map(fun (ClientName) ->
+                      _Client = #client{
+                        pid = ClientPID,
+                        session_id = SessionID
+                       } = find_client(ClientName, Clients),
+                      RealResponse = message:set_value(session_id, SessionID,
+                                                       Response),
+                      connector:send_packet(ClientPID, RealResponse)
+              end, lists:append(Players, Observers)),
+    ok.
